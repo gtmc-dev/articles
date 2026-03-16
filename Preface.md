@@ -16,9 +16,9 @@
 
 文档中采用的代码使用`1.20.1-yarn`反编译，若有特殊情况会以上标[^3]注明。
 
-文章中留有习题供读者自行练习，答案以 <hidden>这是答案，遮罩只有网页访问可用</hidden> 遮罩，鼠标悬浮在遮罩块上方即可显示。
+<!-- 文章中留有习题供读者自行练习，答案以 <hidden>这是答案，遮罩只有网页访问可用</hidden> 遮罩，鼠标悬浮在遮罩块上方即可显示。 -->
 
-文章中部分内容会被写作#00aaff{awa}、#color:green{qwq}或<color blue>blue</color>，在网页端上大括号内内容会被着色标注。
+<!-- 文章中部分内容会被写作#00aaff{awa}、#color:green{qwq}或<color blue>blue</color>，在网页端上大括号内内容会被着色标注。 -->
 
 可以来QQ裙吹水：[1031431170](https://qm.qq.com/q/fiXR8MyZA4)
 
@@ -42,7 +42,7 @@ Minecraft © Mojang AB / Microsoft Corporation. All Rights Reserved.
 GTMC Team:
 
 - 写手 / ABxl_lly, BFladderbean, Molforte, Ryan100c, tanh_Heng, Twisuki, xhbsh , yuhan2680
-- 代码 / [BFladderbean](https://bfladderbean.me/), [4rcadia](https://github.com/Arcadi4)
+- 开发 / [BFladderbean](https://bfladderbean.me/), [4rcadia](https://github.com/Arcadi4)
 - 协作 / Petris, void, XJH_Jorhai
 - 鸣谢 / Fallen_Breath, 五羊飞 kaniol
 
