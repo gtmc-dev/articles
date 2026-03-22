@@ -50,3 +50,4 @@
 严格禁止使用 merge commit。不要在你自己的 fork 中创建任何此类提交。有关如何避免创建 merge commit 的说明，请参见 [Preventing Merge Commits](NO_MERGE_COMMITS.md)。如果 PR 中包含 merge commit，我们将对其进行修改以移除这些提交。
 
 > conflict test
+> update on brand new submission system
