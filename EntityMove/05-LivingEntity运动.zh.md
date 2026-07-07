@@ -306,3 +306,115 @@ $$
 在表达式(6.3.6)中求出$\sqrt{(\Delta x)^{2} + (\Delta z)^{2}}$关于$\cos^{2}pitch$的导函数，求得其在定义域上仅有一个零点$\frac{\sqrt{67.8} - 3}{14.7}$，也就是说图中那个最高点对应俯仰角正切的平方就是这个值，可以求得此时俯仰角约为53.366度。将其带入式(6.3.6)，求得此时实体飞行速度约为3.3888m/gt,即67.776m/s，与实验值3.38879125m/gt高度接近，也明显高于52度俯冲的速度3.38383913m/gt，所以，Wiki上那个说52度俯冲最快的那些个地方又得改了。
 
 如果希望更加详细地了解一些其它方面的实验数据、仰视时的情况和一些实际问题，可以查阅这两个专栏**\[12\]**。
+
+## [!ADVANCED] 源码走读
+
+### LivingEntity.travel()：统一的环境运动
+
+`travel()` 是 LivingEntity 的核心运动方法，根据实体所处的环境（空气、水、岩浆、飞行）走不同的分支：
+
+```java
+// LivingEntity.java (1.20.1 Yarn)
+public void travel(Vec3d movementInput) {
+    if (this.isLogicalSideForUpdatingMovement()) {
+        double d = 0.08;  // 默认重力加速度
+        boolean bl = this.getVelocity().y <= 0.0;
+        if (bl && this.hasStatusEffect(StatusEffects.SLOW_FALLING)) {
+            d = 0.01;  // 缓降：重力 = 0.01
+        }
+
+        FluidState fluidState = this.getWorld().getFluidState(this.getBlockPos());
+
+        // ===== 水中分支 =====
+        if (this.isTouchingWater() && this.shouldSwimInFluids() && ...) {
+            float f = this.isSprinting() ? 0.9F : this.getBaseMovementSpeedMultiplier();
+            float g = 0.02F;  // 水中加速度基数
+
+            // Depth Strider 附魔：减少水阻力
+            float h = EnchantmentHelper.getDepthStrider(this);
+            if (h > 3.0F) h = 3.0F;
+            if (!this.isOnGround()) h *= 0.5F;
+            if (h > 0.0F) {
+                f += (0.54600006F - f) * h / 3.0F;  // 调整阻力乘数
+                g += (this.getMovementSpeed() - g) * h / 3.0F;  // 调整加速度
+            }
+
+            // 海豚的恩惠：阻力乘数 = 0.96
+            if (this.hasStatusEffect(StatusEffects.DOLPHINS_GRACE)) { f = 0.96F; }
+
+            this.updateVelocity(g, movementInput);   // 将输入映射为 Motion 变化
+            this.move(MovementType.SELF, this.getVelocity());
+            this.setVelocity(this.getVelocity().multiply(f, 0.8F, f));  // 阻力（乘法）
+            // 浮力
+            Vec3d buoyancy = this.applyFluidMovingSpeed(d, bl, this.getVelocity());
+            this.setVelocity(buoyancy);
+
+            // 水中爬墙：水平碰撞且有攀爬能力 → Y = 0.2
+            if (this.horizontalCollision && this.isClimbing()) {
+                this.setVelocity(new Vec3d(vec3d.x, 0.2, vec3d.z));
+            }
+        }
+
+        // ===== 岩浆中分支 =====
+        else if (this.isInLava() && ...) {
+            this.updateVelocity(0.02F, movementInput);
+            this.move(MovementType.SELF, this.getVelocity());
+            // 浮力/阻力
+            if (fluidHeight <= swimHeight) {
+                this.setVelocity(this.getVelocity().multiply(0.5, 0.8F, 0.5));
+                this.setVelocity(this.applyFluidMovingSpeed(d, bl, this.getVelocity()));
+            } else {
+                this.setVelocity(this.getVelocity().multiply(0.5));
+            }
+            // 岩浆重力 = 0.02（空气中重力的 1/4）
+            if (!this.hasNoGravity()) {
+                this.setVelocity(this.getVelocity().add(0.0, -d / 4.0, 0.0));
+            }
+        }
+    }
+}
+```
+
+`updateVelocity(g, movementInput)` 是关键的输入映射——它将 WASD 操纵杆的输入值（`movementInput`，三维向量，形如 `(左右, 上下, 前后)`）结合 `movementSpeed` 属性转化为 Motion 的实际变化量。`g = 0.02F` 是空气中行走的默认加速度（水中会因 Depth Strider 而提高）。
+
+### tickMovement()：每 tick 的运动预处理
+
+```java
+// LivingEntity.java
+public void tickMovement() {
+    // 跳跃冷却递减
+    if (this.jumpingCooldown > 0) { this.jumpingCooldown--; }
+
+    // 服务端/客户端位置同步插值
+    if (this.isLogicalSideForUpdatingMovement()) {
+        this.updateTrackedPosition(this.getX(), this.getY(), this.getZ());
+    }
+
+    // bodyTrackingIncrements 递减 → 客户端平滑插值
+    // canMoveVoluntarily() = false（如被眩晕）时 → 空气阻力 = 0.98
+    if (!this.canMoveVoluntarily()) {
+        this.setVelocity(this.getVelocity().multiply(0.98));
+    }
+}
+```
+
+`canMoveVoluntarily()` 返回 false 时（如被栓绳拉住、被眩晕），实体仅受空气阻力 $k=0.98$——不能主动移动，但已有惯性会逐渐衰减。
+
+### 跳跃的"设值"语义
+
+LivingEntity `jump()` 方法在 1.20.1 中：
+
+```java
+// LivingEntity.java - jump()
+public void jump() {
+    double d = this.getJumpVelocity();  // 默认 0.42
+    if (this.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
+        d += 0.1F * (this.getStatusEffect(StatusEffects.JUMP_BOOST).getAmplifier() + 1);
+    }
+    this.setVelocity(this.getVelocity().x, d, this.getVelocity().z);  // Y 设为 d，不叠加
+    this.velocityDirty = true;
+}
+```
+
+`setVelocity(x, d, z)` 直接将 Y 分量**设**为 `d`，而非在原值上**加** `d`。这验证了原文关于"跳跃是设值而非加速"的论述——下落的实体跳跃时，之前的负 Y Motion 被丢弃，从 0.42 重新开始。
+
