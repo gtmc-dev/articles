@@ -1,8 +1,7 @@
 ---
 slug: entity-living-motion
 title: LivingEntity 运动
-author: BFladderbeanawa
-co-author: lovexyn0827
+author: lovexyn0827
 description: LivingEntity 的 AI 驱动加速、玩家控制输入、状态效果影响与鞘翅飞行机制。
 index: 5
 is-advanced: false
