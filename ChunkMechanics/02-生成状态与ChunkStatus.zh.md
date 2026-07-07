@@ -1,6 +1,8 @@
 ---
 slug: chunk-status
 title: 生成状态与 ChunkStatus
+author: BFladderbeanawa
+co-author: lovexyn0827
 description: 12步区块生成管线、外圈依赖、taskMargin 与切比雪夫距离、光照与存档升级旁路。
 index: 2
 is-advanced: false

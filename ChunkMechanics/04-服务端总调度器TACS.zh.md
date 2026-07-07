@@ -1,6 +1,8 @@
 ---
 slug: chunk-tacs
 title: 服务端总调度器 TACS
+author: BFladderbeanawa
+co-author: lovexyn0827
 description: ThreadedAnvilChunkStorage 的职责总览、核心表结构、三类执行器，以及 ChunkTaskPrioritySystem 的优先级调度。
 index: 4
 is-advanced: false
