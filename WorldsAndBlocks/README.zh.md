@@ -1,7 +1,7 @@
 ---
 slug: worlds-and-blocks
 index: 0
-chapter-title: 维度与方块
+chapter-title: 世界与方块
 intro-title: 从眼前的方块开始
 ---
 
