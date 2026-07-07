@@ -1,6 +1,35 @@
 ---
-slug: entity-movement
-index: -1
-chapter-title: 实体移动
-intro-title: null
+slug: entity-motion
+index: 0
+author: BFladderbeanawa
+co-author: lovexyn0827
+chapter-title: 实体运动
+intro-title: 从 Motion 到碰撞箱
 ---
+
+## 概述
+
+扔出一个末影珍珠，射出一支箭，点燃一块 TNT——这些看似简单的操作背后，是一套精确的物理模拟系统在运作。
+
+Minecraft 的实体运动与现实的牛顿力学有相似之处，但也有根本性的差异。Motion 不是速度、加速度是冲量、阻力是乘法而不是连续微分——这些概念如果不加区分地套用物理直觉，会得出完全错误的结论。
+
+本章从源码出发，依次介绍实体运动的核心属性、运算模型、移动碰撞机制、自由运动公式，以及外部因素对运动的影响。
+
+## 结构
+
+1. **[绪论](./00-绪论.zh.md)** —— 研究背景、约定与知识基础
+2. **[实体运动基础](./01-实体运动基础.zh.md)** —— 属性定义、运算顺序、阻力模型、实体分类
+3. **[实体移动与碰撞](./02-实体移动与碰撞.zh.md)** —— `move()` 方法、沿轴碰撞检测、步高机制
+4. **[自由运动公式](./03-自由运动公式.zh.md)** —— k 值、位移公式、终端速度
+5. **[外力对运动的影响](./04-外力对运动的影响.zh.md)** —— 流体、活塞、爆炸、粘液块
+6. **[LivingEntity 运动](./05-LivingEntity运动.zh.md)** —— AI 驱动加速、玩家控制、鞘翅飞行
+
+## 术语与参考
+
+本章主要基于 lovexyn0827《Minecraft 实体运动研究与应用》（CC0 协议），以 Minecraft Java Edition 1.16.4/1.16.5 为基准。
+
+## 前置知识
+
+- [重新认识世界](../WorldsAndBlocks/重新认识世界.zh.md)
+- [区块机制](../ChunkMechanics/README.zh.md)
+- 高中阶段数学和物理基础概念
