@@ -1,6 +1,6 @@
 ---
 slug: chunk-mechanics
-index: 0
+index: -1
 chapter-title: 区块机制
 intro-title: 从区块到世界
 ---

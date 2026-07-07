@@ -1,6 +1,6 @@
 ---
 slug: block-mechanics
-index: 0
+index: -1
 chapter-title: 方块机制
 intro-title: 方块的本质
 ---
