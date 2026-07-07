@@ -136,56 +136,89 @@ TACS 收到的每一个 `setLevel` 回调、每一个 `tick` 调用、每一个 
 - 三类执行器（主线程、生成线程、光照线程）分工协作。
 - `ChunkTaskPrioritySystem` 按加载等级优先级调度任务，保证关键区块优先处理。
 
-## [!ADVANCED] 源码验证
+## [!ADVANCED] 代码走读
 
-### TACS 核心字段
-
-```java
-// ThreadedAnvilChunkStorage.java (1.20.1 Yarn)
-public static final int field_29670 = ChunkLevels.getLevelFromType(ChunkLevelType.ENTITY_TICKING);  // = 31
-private final Long2ObjectLinkedOpenHashMap<ChunkHolder> currentChunkHolders;   // 所有活跃的 ChunkHolder
-private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders;       // currentChunkHolders 的快照（用于迭代）
-private final Long2ObjectLinkedOpenHashMap<ChunkHolder> chunksToUnload;        // 待卸载的 holder
-private final LongSet loadedChunks;                                             // 已完全加载的区块
-final LongSet unloadedChunks;                                                   // 从可访问退出后标记
-
-// 三类执行器
-private final ChunkTaskPrioritySystem chunkTaskPrioritySystem;                  // 区块任务优先级调度
-private final MessageListener<ChunkTaskPrioritySystem.Task<Runnable>> worldGenExecutor; // 生成线程
-private final ServerLightingProvider lightingProvider;                          // 光照引擎
-private final PointOfInterestStorage pointOfInterestStorage;                    // POI 存储
-```
-
-### ChunkTaskPrioritySystem.createMessage
-
-```java
-// ChunkTaskPrioritySystem.java
-public static Task<Runnable> createMessage(ChunkHolder holder, Runnable task) {
-    return createMessage(task, holder.getPos().toLong(), holder::getCompletedLevel);
-    // 任务优先级由 holder.getCompletedLevel() 决定——level 越低，优先级越高
-}
-```
-
-### TACS.setViewDistance
+### setLevel：生命周期管理的核心方法
 
 ```java
 // ThreadedAnvilChunkStorage.java
+ChunkHolder setLevel(long pos, int level, @Nullable ChunkHolder holder, int oldLevel) {
+    // 第1条规则：如果新旧都是不可访问，什么都不做
+    if (!ChunkLevels.isAccessible(oldLevel) && !ChunkLevels.isAccessible(level)) {
+        return holder;  // 不可访问→不可访问：生成中的区块不需要 ChunkHolder 跟进
+    }
+
+    // 第2条规则：已有 holder 时直接更新 level
+    if (holder != null) {
+        holder.setLevel(level);
+    }
+
+    // 第3条规则：不可访问时标记为可卸载
+    if (holder != null) {
+        if (!ChunkLevels.isAccessible(level)) {
+            this.unloadedChunks.add(pos);  // 只是标记，不立即卸载
+        } else {
+            this.unloadedChunks.remove(pos);
+        }
+    }
+
+    // 第4条规则：可访问但没有 holder → 创建或从卸载队列复用
+    if (ChunkLevels.isAccessible(level) && holder == null) {
+        holder = this.chunksToUnload.remove(pos);  // 先尝试复用
+        if (holder != null) {
+            holder.setLevel(level);  // 旧 holder 换新 level，直接复活
+        } else {
+            holder = new ChunkHolder(new ChunkPos(pos), level, ...);  // 全新创建
+        }
+        this.currentChunkHolders.put(pos, holder);
+    }
+    return holder;
+}
+```
+
+**为什么第 4 条规则要优先从 `chunksToUnload` 复用？** 一个区块可能经历"加载 → 卸载 → 再次加载"的循环（玩家来回走动）。如果每次卸载都 new、每次加载都 new，频繁的对象创建会导致 GC 压力。`chunksToUnload` 存储了尚未被真正释放的 `ChunkHolder`——它里面的 `ChunkSection[]` 可能还有数据。复用它意味着跳过构造器中的 `fillSectionArray()` 填充，直接以一个完好的 `sectionArray` 重新进入运行态。
+
+**为什么第 1 条规则不返回 null？** 如果 holder 已存在（在不可访问范围内有生成任务进行中），`setLevel` 被调用只是更新 level 值而不销毁 holder——生成任务需要 holder 作为容器来存储生成的中间结果。返回 null 会让上层认为"这个区块不需要关注"，而实际上生成线程正在往这个 holder 里写数据。
+
+### chunkHolders 快照：volatile + 克隆的线程安全模式
+
+```java
+private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders
+    = this.currentChunkHolders.clone();
+```
+
+这个字段的写入频率很低（只在需要稳定迭代时克隆），读取频率很高（每个 tick 遍历多次）。`volatile` 保证了**跨线程的可见性**——当主线程更新 `chunkHolders` 的引用时，任何读取它的线程都能立即看到新值。克隆操作本身在主线程上执行（写入端），而读取端可能在 tick 保存或 dump 等异步路径中。
+
+这种模式是典型的**写时复制（Copy-On-Write）**：只在需要迭代时支付克隆开销，读取端零开销。
+
+### setViewDistance：视距变化时的客户端数据重发
+
+```java
 protected void setViewDistance(int watchDistance) {
-    int i = MathHelper.clamp(watchDistance, 2, 32);  // 视距限制在 2~32
+    int i = MathHelper.clamp(watchDistance, 2, 32);  // 硬限制 2~32
     if (i != this.watchDistance) {
+        int oldDist = this.watchDistance;
         this.watchDistance = i;
-        this.ticketManager.setWatchDistance(this.watchDistance);
-        // 遍历所有 currentChunkHolders，重新评估是否需要向玩家发送/取消区块数据
-        for (ChunkHolder chunkHolder : this.currentChunkHolders.values()) {
-            this.getPlayersWatchingChunk(chunkHolder.getPos(), false).forEach(player -> {
-                boolean oldIn = isWithinDistance(..., oldDist);
-                boolean newIn = isWithinDistance(..., this.watchDistance);
-                this.sendWatchPackets(player, chunkPos, ..., oldIn, newIn);
+        this.ticketManager.setWatchDistance(i);
+        // 遍历所有现有 ChunkHolder
+        for (ChunkHolder holder : this.currentChunkHolders.values()) {
+            ChunkPos pos = holder.getPos();
+            // 对每个正在观察此区块的玩家
+            this.getPlayersWatchingChunk(pos, false).forEach(player -> {
+                // 判断该区块在新旧视距下是否在玩家视野内
+                boolean wasInRange = isWithinDistance(pos, playerPos, oldDist);
+                boolean nowInRange = isWithinDistance(pos, playerPos, i);
+                // 只在边界变化时发送/取消数据包
+                if (wasInRange != nowInRange) {
+                    this.sendWatchPackets(player, pos, ...);
+                }
             });
         }
     }
 }
 ```
+
+注意这里的逻辑：**只在区块的"进入视野/离开视野"状态改变时才发送数据包**。如果一个区块在新旧视距下都在视野内，不会重发——避免了玩家调整视距时的网络风暴。但如果一个区块在新视距下首次进入视野，整个 `ChunkDataS2CPacket` 会被发送到客户端。
 
 ## 参考
 

@@ -117,54 +117,86 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 - 光照系统在两个专用阶段运行，由独立线程管理；存档升级系统在 `ChunkSerializer` 中通过 `DataFixer` 介入。
 - 世界生成的详细内容超出了本章范围，将在后续"世界生成"专章详细展开。
 
-## [!ADVANCED] 源码验证
+## [!ADVANCED] 代码走读
 
-### ChunkStatus 枚举（1.20.1）
+### ChunkStatus 的注册模式：为什么是链表而不是枚举
 
 ```java
-// ChunkStatus.java - 注册顺序
-public static final ChunkStatus EMPTY = register("empty", ...);
-public static final ChunkStatus STRUCTURE_STARTS = register("structure_starts", EMPTY, ...);
-public static final ChunkStatus STRUCTURE_REFERENCES = register("structure_references", STRUCTURE_STARTS, ...);
-public static final ChunkStatus BIOMES = register("biomes", STRUCTURE_REFERENCES, ...);
-public static final ChunkStatus NOISE = register("noise", BIOMES, ...);
-public static final ChunkStatus SURFACE = register("surface", NOISE, ...);
-public static final ChunkStatus CARVERS = register("carvers", SURFACE, ...);
-public static final ChunkStatus FEATURES = register("features", CARVERS, ...);
-public static final ChunkStatus INITIALIZE_LIGHT = register("initialize_light", FEATURES, ...);
-public static final ChunkStatus LIGHT = register("light", INITIALIZE_LIGHT, ...);
-public static final ChunkStatus SPAWN = register("spawn", LIGHT, ...);
-public static final ChunkStatus FULL = register("full", SPAWN, ...);
+// ChunkStatus.java（简化）
+public static final ChunkStatus EMPTY = register("empty", null, -1, ...);
+public static final ChunkStatus STRUCTURE_STARTS = register("structure_starts", EMPTY, 0, ...);
+public static final ChunkStatus STRUCTURE_REFERENCES = register("structure_references", STRUCTURE_STARTS, 8, ...);
+// ... 以此类推 ...
+public static final ChunkStatus FULL = register("full", SPAWN, 0, false, ..., ChunkType.LEVELCHUNK, ...);
 ```
 
-1.20.1 相比 1.16.4 移除了 `liquid_carvers` 和 `heightmaps`，新增了 `INITIALIZE_LIGHT`。`isAtLeast()` 方法通过比较 `index`（注册序号）判断"是否至少达到某阶段"。
-
-### taskMargin 在注册中的体现
-
-每个 `ChunkStatus` 注册时携带 `taskMargin`，例如：
+`ChunkStatus` 不是 Java 的 `enum`，而是一个手写的**链表结构**。每个状态通过 `previous` 字段指向前一个状态：
 
 ```java
-// CARVERS: taskMargin=8, shouldAlwaysUpgrade=false
-// LIGHT: taskMargin=1, shouldAlwaysUpgrade=true
-// FULL: taskMargin=0, shouldAlwaysUpgrade=false, chunkType=LEVELCHUNK
-```
-
-`taskMargin` 的实际影响在 `ChunkStatus.getTaskMargin()` 返回后，由 `ThreadedAnvilChunkStorage.getRegion()` 用于确保周围指定切比雪夫距离内的区块达到要求状态。
-
-### ChunkHolder.futuresByStatus
-
-```java
-// ChunkHolder.java
-private final AtomicReferenceArray<CompletableFuture<Either<Chunk, Unloaded>>> futuresByStatus
-    = new AtomicReferenceArray<>(ChunkStatus.createOrderedList().size());
-
-public CompletableFuture<Either<Chunk, Unloaded>> getFutureFor(ChunkStatus leastStatus) {
-    CompletableFuture<Either<Chunk, Unloaded>> f = this.futuresByStatus.get(leastStatus.getIndex());
-    return f == null ? UNLOADED_CHUNK_FUTURE : f;
+// ChunkStatus 构造器
+ChunkStatus(@Nullable ChunkStatus previous, int taskMargin, ...) {
+    this.previous = previous == null ? this : previous;  // EMPTY 的前驱是自己
+    this.index = previous == null ? 0 : previous.getIndex() + 1;
+    // ...
 }
 ```
 
-数组长度 = `ChunkStatus` 数量（12），每个索引对应一个 `ChunkStatus` 阶段的完成 Future。
+**为什么不用 `enum`？** 如果 `ChunkStatus` 是一个 Java `enum`，它的值在编译时就固定了——模组无法在运行时插入新的生成阶段。用链表注册模式，模组可以通过 Mixin 向 `createOrderedList()` 返回的列表中添加新状态，从而在生成管线中插入自定义步骤。基础概念中提到的 `INITIALIZE_LIGHT`（1.20 新增）本身也证明了这种灵活性——Mojang 自己也需要在版本间增删阶段。
+
+**`isAtLeast()` 的设计**：通过比较 `index` 判断进度：
+
+```java
+public boolean isAtLeast(ChunkStatus other) {
+    return this.getIndex() >= other.getIndex();
+}
+```
+
+注意这里的语义是"至少达到"，即"已完成到某个阶段或更远"。例如 `LIGHT.isAtLeast(FEATURES)` 返回 `true`——光照完成了，地物自然也已经完成。
+
+### taskMargin：生成任务的外圈依赖机制
+
+```java
+// ChunkStatus 注册示例
+CARVERS:  register("carvers", SURFACE, 8, ...)  // taskMargin=8
+LIGHT:    register("light", INITIALIZE_LIGHT, 1, ...)  // taskMargin=1
+FULL:     register("full", SPAWN, 0, ...)  // taskMargin=0
+```
+
+`taskMargin` 在 `ThreadedAnvilChunkStorage.getRegion()` 中被使用：
+
+```java
+// 伪代码
+getRegion(holder, taskMargin, statusProvider) {
+    // 收集以 holder 的 chunk 为中心、(2*taskMargin+1)² 区域内的所有区块
+    // 等待它们都达到 statusProvider.apply(distance) 要求的最低状态
+    // 如果达不到 → 返回的 CompletableFuture 一直 pending，任务被挂起
+}
+```
+
+**为什么 `CARVERS` 需要 taskMargin=8 而 `LIGHT` 只需要 1？** 洞穴生成时，一条洞穴可能横跨多个区块。如果只在一个区块内生成洞穴，边界处就会出现"洞穴突然断裂"的视觉错误。taskMargin=8 保证了生成洞穴的中心区块周围 8 格以内的区块也至少完成了前置阶段（`SURFACE`），整个区域的洞穴可以连贯地生成。
+
+光照计算只需要 taskMargin=1，因为光照传播只需相邻区块的亮度值——第一层邻块完成后，光照就已经可以正确计算了。
+
+**`shouldAlwaysUpgrade` 的含义**：某些状态（如 `INITIALIZE_LIGHT` 和 `LIGHT`）标记为 `shouldAlwaysUpgrade=true`。这意味着即使从磁盘加载旧区块时该状态已经"完成"，系统也会**强制重新执行**这个阶段的运算。为什么光照需要这个？因为光照依赖于周围区块的状态——而周围区块可能在保存后被修改了。强制重新计算光照保证了加载后的区块光照是正确的。
+
+### GenerationTask 的任务调度
+
+每个 `ChunkStatus` 在注册时携带一个 `GenerationTask`（通过重载方法，未指定时使用默认的 `STATUS_BUMP_LOAD_TASK`）：
+
+```java
+// ChunkStatus.java
+interface GenerationTask {
+    CompletableFuture<Either<Chunk, Unloaded>> doWork(
+        ChunkStatus targetStatus, Executor executor, ServerWorld world,
+        ChunkGenerator generator, ..., List<Chunk> chunks, Chunk chunk);
+}
+```
+
+调度逻辑在 `runGenerationTask()` 中：它从 `chunks` 列表（`getRegion` 收集的周边区块）取中间的区块作为目标，调用 `generationTask.doWork()`。任务完成后，将 `chunk.setStatus(this)` 标记当前阶段完成，然后编译器将结果传递给 `futuresByStatus[this.index]`，触发等待此阶段的 Future。
+
+这里有两点设计细节值得注意：
+1. **任务在独立生成线程上执行**（`worldGenExecutor`），不在主线程。这是 `CompletableFuture` 的必要性——主线程不能阻塞等待生成完成。
+2. **getRegion 的 margin 参数**：对于 `makeChunkTickable`，`margin=1` 意味着要求周围 9 个区块（3×3）都达到 `FULL`。这不是 taskMargin——taskMargin 控制的是**同一个阶段**的传播，而 margin 控制的是**不同阶段之间的依赖**。
 
 ## 参考
 

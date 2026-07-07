@@ -187,9 +187,9 @@ private final AtomicReferenceArray<CompletableFuture<Either<Chunk, Unloaded>>> f
 - 完整生命周期：无人问津 → 进入视野 → 升温 → 稳定 → 降温 → 卸载 → 重生。
 - 区块的"存在"不是二元的——它是一个由 level 和 ChunkStatus 共同决定的精细光谱。
 
-## [!ADVANCED] 源码验证
+## [!ADVANCED] 代码走读
 
-### ChunkHolder 的三个 Future
+### 三个 Future 的状态机设计
 
 ```java
 // ChunkHolder.java
@@ -199,96 +199,64 @@ private volatile CompletableFuture<Either<WorldChunk, Unloaded>> tickingFuture
     = UNLOADED_WORLD_CHUNK_FUTURE;
 private volatile CompletableFuture<Either<WorldChunk, Unloaded>> entityTickingFuture
     = UNLOADED_WORLD_CHUNK_FUTURE;
-
-// 初始值 UNLOADED_WORLD_CHUNK_FUTURE 是一个已完成 Future：
-// = CompletableFuture.completedFuture(Either.right(Unloaded.INSTANCE))
 ```
 
-### tick() 完整源码（关键片段）
+三个 Future 的初始值 `UNLOADED_WORLD_CHUNK_FUTURE` 是一个**已完成的** Future，值为 `Either.right(Unloaded.INSTANCE)`。这意味着任何在初始化时尝试等待这些 Future 的代码都会**立即得到"不可用"的结果**，不会阻塞主线程。
+
+**为什么用 `Either` 而不是 `Optional`？** `Optional<WorldChunk>` 只能表示"有"或"没有"。但 `ChunkHolder.Unloaded` 不仅仅表示"没有"——它还携带信息（如含有该区块坐标的 `toString()`，用于调试和日志）。`Either<WorldChunk, Unloaded>` 明确区分了"可用"（Left）和"不可用的原因"（Right）两种状态。在降级时，`complete(UNLOADED_WORLD_CHUNK)` 将 Right 作为完成值注入，所有等待这个 Future 的代码都能区分"因为降级而不可用"和"因为 null 而不可用"。
+
+**为什么三个 Future 都是 `volatile`？** 因为它们的读写可能发生在不同线程上：`tick()` 在主线程执行，`CompletableFuture` 的回调（`.thenAccept()` 等）可能在主线程执行器或生成线程上运行。`volatile` 保证了写入后对其他线程立即可见，避免了"写入了新 Future，但读线程看到的还是旧值"的并发问题。
+
+### tick() 的状态机设计：为什么检查所有三个级别
+
+`tick()` 是整个 `ChunkHolder` 的核心——它像一个**三层温控器**，对比 `lastTickLevel` 和 `level` 来决定执行什么操作。
+
+关键设计决策：**即使只有一个级别发生变化，`tick()` 仍然检查所有三个级别。** 这是因为加载等级的跳跃可能一次跨越多级——比如加载票被直接移除，level 可能从 31 跳到 44。在这种情况下，`tick()` 需要降级所有三个 Future，而不仅仅是 `entityTickingFuture`。
+
+**entityTickingFuture 的升温检查：**
 
 ```java
-// ChunkHolder.tick()
-protected void tick(ThreadedAnvilChunkStorage chunkStorage, Executor executor) {
-    ChunkStatus chunkStatus = ChunkLevels.getStatus(this.lastTickLevel);
-    ChunkStatus chunkStatus2 = ChunkLevels.getStatus(this.level);
-    ChunkLevelType chunkLevelType = ChunkLevels.getType(this.lastTickLevel);
-    ChunkLevelType chunkLevelType2 = ChunkLevels.getType(this.level);
-
-    // ===== 降温：清空不再需要的 futuresByStatus =====
-    boolean bl = ChunkLevels.isAccessible(this.lastTickLevel);
-    boolean bl2 = ChunkLevels.isAccessible(this.level);
-    if (bl) {
-        for (int i = bl2 ? chunkStatus2.getIndex() + 1 : 0;
-             i <= chunkStatus.getIndex(); i++) {
-            if (this.futuresByStatus.get(i) == null) {
-                this.futuresByStatus.set(i,
-                    CompletableFuture.completedFuture(Either.right(new Unloaded() {...})));
-            }
-        }
+if (!bl7 && bl8) {  // 从非 ENTITY_TICKING → ENTITY_TICKING
+    if (this.entityTickingFuture != UNLOADED_WORLD_CHUNK_FUTURE) {
+        throw new IllegalStateException();  // 防御性断言
     }
-
-    // ===== 升温/降温: accessible → FULL =====
-    boolean bl3 = chunkLevelType.isAfter(ChunkLevelType.FULL);
-    boolean bl4 = chunkLevelType2.isAfter(ChunkLevelType.FULL);
-    this.accessible |= bl4;
-    if (!bl3 && bl4) {
-        this.accessibleFuture = chunkStorage.makeChunkAccessible(this);
-    }
-    if (bl3 && !bl4) {
-        this.accessibleFuture.complete(UNLOADED_WORLD_CHUNK);
-        this.accessibleFuture = UNLOADED_WORLD_CHUNK_FUTURE;
-    }
-
-    // ===== 升温/降温: ticking → BLOCK_TICKING =====
-    boolean bl5 = chunkLevelType.isAfter(ChunkLevelType.BLOCK_TICKING);
-    boolean bl6 = chunkLevelType2.isAfter(ChunkLevelType.BLOCK_TICKING);
-    if (!bl5 && bl6) {
-        this.tickingFuture = chunkStorage.makeChunkTickable(this);
-    }
-    if (bl5 && !bl6) {
-        this.tickingFuture.complete(UNLOADED_WORLD_CHUNK);
-        this.tickingFuture = UNLOADED_WORLD_CHUNK_FUTURE;
-    }
-
-    // ===== 升温/降温: entityTicking → ENTITY_TICKING =====
-    boolean bl7 = chunkLevelType.isAfter(ChunkLevelType.ENTITY_TICKING);
-    boolean bl8 = chunkLevelType2.isAfter(ChunkLevelType.ENTITY_TICKING);
-    if (!bl7 && bl8) {
-        if (this.entityTickingFuture != UNLOADED_WORLD_CHUNK_FUTURE) {
-            throw new IllegalStateException();  // 防御：不允许从非 UNLOADED 状态升温
-        }
-        this.entityTickingFuture = chunkStorage.makeChunkEntitiesTickable(this);
-    }
-    if (bl7 && !bl8) {
-        this.entityTickingFuture.complete(UNLOADED_WORLD_CHUNK);
-        this.entityTickingFuture = UNLOADED_WORLD_CHUNK_FUTURE;
-    }
-
-    // ===== 完成：更新 completedLevel =====
-    this.levelUpdateListener.updateLevel(
-        this.pos, this::getCompletedLevel, this.level, this::setCompletedLevel);
-    this.lastTickLevel = this.level;
+    this.entityTickingFuture = chunkStorage.makeChunkEntitiesTickable(this);
 }
 ```
 
-### makeChunkTickable 的周边依赖
+这里的 `if (this.entityTickingFuture != UNLOADED_WORLD_CHUNK_FUTURE)` 断言是一个**防御性编程**的例子。正常流程下，从非 ENTITY_TICKING 升温时，`entityTickingFuture` 应该处于初始状态（`UNLOADED_WORLD_CHUNK_FUTURE`）。如果它不是，说明之前的降温操作没有正确 complete 这个 Future，或者升温被错误地重复触发了——这是一种不该发生但不完全不可能发生的情况（比如由于异步任务执行顺序的异常）。抛出 `IllegalStateException` 而不是静默覆盖，**让 bug 在第一时间暴露**，而不是让一个"半完成"的 Future 继续传递下去，在不知名的地方引发更难追踪的问题。
+
+**`accessible |= bl4` 的设计：**
+
+```java
+this.accessible |= bl4;
+```
+
+`accessible` 是一个粘性标记——一旦被设为 true，永远不会被重置为 false。即使区块的 level 从 33 降到 34，`accessible` 保持 true。它的语义是"这个区块是否曾经达到过 FULL"——用于 `ThreadedAnvilChunkStorage` 中判断是否需要在保存时处理这个区块（曾经可访问过的区块可能有 `needsSaving = true`，需要写回磁盘）。
+
+### makeChunkTickable 的 margin=1：为什么要求周边区块
 
 ```java
 // ThreadedAnvilChunkStorage.java
 public CompletableFuture<Either<WorldChunk, Unloaded>> makeChunkTickable(ChunkHolder holder) {
-    // 确保周围 margin=1 区块距离内的区块都达到 FULL
-    CompletableFuture<Either<List<Chunk>, Unloaded>> f = this.getRegion(holder, 1,
-        distance -> ChunkStatus.FULL);
+    // 等待以 holder 为中心、margin=1 范围内所有区块达到 FULL
+    CompletableFuture<Either<List<Chunk>, Unloaded>> f = this.getRegion(
+        holder, 1, distance -> ChunkStatus.FULL);
+
     return f.thenApplyAsync(chunks ->
         chunks.mapLeft(cs -> (WorldChunk) cs.get(cs.size() / 2)), ...)
         .thenApplyAsync(either -> either.ifLeft(chunk -> {
-            chunk.runPostProcessing();
-            this.world.disableTickSchedulers(chunk);
+            chunk.runPostProcessing();          // 执行后处理列表中的任务
+            this.world.disableTickSchedulers(chunk);  // 禁用旧的 tick 调度器
         }), this.mainThreadExecutor);
 }
 ```
 
-`getRegion(holder, 1, ...)` 中的 `margin=1` 要求：要使中心区块进入 ticking，其周围 1 个切比雪夫距离内的所有区块必须达到 `FULL`。如果达不到，`makeChunkTickable` 返回的 Future 不会 complete——该区块的 ticking 被挂起，等待异步任务队列再次推动。
+`getRegion(holder, 1, distance -> ChunkStatus.FULL)` 收集了以 holder 为中心，超出 1 个切比雪夫距离外的所有区块（即 3×3 = 9 个区块），等待它们全部达到 `FULL`。
+
+**为什么需要周边区块？** 使一个区块进入 ticking 意味着它开始执行方块刻和随机刻——这些运算需要查询相邻区块的方块状态（例如红石信号传播、流体流动、活塞推拉检查）。如果相邻区块还在生成中（还是 `ProtoChunk`），查询结果可能是不完整的——导致红石装置行为异常。要求周边区块全部达到 FULL 保证了 tick 运算的可预测性。
+
+注意 `chunk.runPostProcessing()` 这一行：在生成过程中，某些操作（如更新栅栏的连接状态、调整红石粉的形状）不能在第 10 阶段（SPAWN）立即执行，因为当时的相邻区块可能还不存在。这些操作被推迟到 `postProcessingLists` 中，在 `makeChunkTickable` 时集中执行——此时 3×3 范围内的区块都已完成生成，这些延迟操作有了完整的上下文。
 
 ## 参考
 
