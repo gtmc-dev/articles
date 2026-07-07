@@ -136,6 +136,57 @@ TACS 收到的每一个 `setLevel` 回调、每一个 `tick` 调用、每一个 
 - 三类执行器（主线程、生成线程、光照线程）分工协作。
 - `ChunkTaskPrioritySystem` 按加载等级优先级调度任务，保证关键区块优先处理。
 
+## [!ADVANCED] 源码验证
+
+### TACS 核心字段
+
+```java
+// ThreadedAnvilChunkStorage.java (1.20.1 Yarn)
+public static final int field_29670 = ChunkLevels.getLevelFromType(ChunkLevelType.ENTITY_TICKING);  // = 31
+private final Long2ObjectLinkedOpenHashMap<ChunkHolder> currentChunkHolders;   // 所有活跃的 ChunkHolder
+private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders;       // currentChunkHolders 的快照（用于迭代）
+private final Long2ObjectLinkedOpenHashMap<ChunkHolder> chunksToUnload;        // 待卸载的 holder
+private final LongSet loadedChunks;                                             // 已完全加载的区块
+final LongSet unloadedChunks;                                                   // 从可访问退出后标记
+
+// 三类执行器
+private final ChunkTaskPrioritySystem chunkTaskPrioritySystem;                  // 区块任务优先级调度
+private final MessageListener<ChunkTaskPrioritySystem.Task<Runnable>> worldGenExecutor; // 生成线程
+private final ServerLightingProvider lightingProvider;                          // 光照引擎
+private final PointOfInterestStorage pointOfInterestStorage;                    // POI 存储
+```
+
+### ChunkTaskPrioritySystem.createMessage
+
+```java
+// ChunkTaskPrioritySystem.java
+public static Task<Runnable> createMessage(ChunkHolder holder, Runnable task) {
+    return createMessage(task, holder.getPos().toLong(), holder::getCompletedLevel);
+    // 任务优先级由 holder.getCompletedLevel() 决定——level 越低，优先级越高
+}
+```
+
+### TACS.setViewDistance
+
+```java
+// ThreadedAnvilChunkStorage.java
+protected void setViewDistance(int watchDistance) {
+    int i = MathHelper.clamp(watchDistance, 2, 32);  // 视距限制在 2~32
+    if (i != this.watchDistance) {
+        this.watchDistance = i;
+        this.ticketManager.setWatchDistance(this.watchDistance);
+        // 遍历所有 currentChunkHolders，重新评估是否需要向玩家发送/取消区块数据
+        for (ChunkHolder chunkHolder : this.currentChunkHolders.values()) {
+            this.getPlayersWatchingChunk(chunkHolder.getPos(), false).forEach(player -> {
+                boolean oldIn = isWithinDistance(..., oldDist);
+                boolean newIn = isWithinDistance(..., this.watchDistance);
+                this.sendWatchPackets(player, chunkPos, ..., oldIn, newIn);
+            });
+        }
+    }
+}
+```
+
 ## 参考
 
 - [Discovering Minecraft - 区块管理系统的基本架构](https://github.com/lovexyn0827/Discovering-Minecraft)（CC0 协议）

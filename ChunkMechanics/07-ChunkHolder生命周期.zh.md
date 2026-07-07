@@ -187,6 +187,109 @@ private final AtomicReferenceArray<CompletableFuture<Either<Chunk, Unloaded>>> f
 - 完整生命周期：无人问津 → 进入视野 → 升温 → 稳定 → 降温 → 卸载 → 重生。
 - 区块的"存在"不是二元的——它是一个由 level 和 ChunkStatus 共同决定的精细光谱。
 
+## [!ADVANCED] 源码验证
+
+### ChunkHolder 的三个 Future
+
+```java
+// ChunkHolder.java
+private volatile CompletableFuture<Either<WorldChunk, Unloaded>> accessibleFuture
+    = UNLOADED_WORLD_CHUNK_FUTURE;
+private volatile CompletableFuture<Either<WorldChunk, Unloaded>> tickingFuture
+    = UNLOADED_WORLD_CHUNK_FUTURE;
+private volatile CompletableFuture<Either<WorldChunk, Unloaded>> entityTickingFuture
+    = UNLOADED_WORLD_CHUNK_FUTURE;
+
+// 初始值 UNLOADED_WORLD_CHUNK_FUTURE 是一个已完成 Future：
+// = CompletableFuture.completedFuture(Either.right(Unloaded.INSTANCE))
+```
+
+### tick() 完整源码（关键片段）
+
+```java
+// ChunkHolder.tick()
+protected void tick(ThreadedAnvilChunkStorage chunkStorage, Executor executor) {
+    ChunkStatus chunkStatus = ChunkLevels.getStatus(this.lastTickLevel);
+    ChunkStatus chunkStatus2 = ChunkLevels.getStatus(this.level);
+    ChunkLevelType chunkLevelType = ChunkLevels.getType(this.lastTickLevel);
+    ChunkLevelType chunkLevelType2 = ChunkLevels.getType(this.level);
+
+    // ===== 降温：清空不再需要的 futuresByStatus =====
+    boolean bl = ChunkLevels.isAccessible(this.lastTickLevel);
+    boolean bl2 = ChunkLevels.isAccessible(this.level);
+    if (bl) {
+        for (int i = bl2 ? chunkStatus2.getIndex() + 1 : 0;
+             i <= chunkStatus.getIndex(); i++) {
+            if (this.futuresByStatus.get(i) == null) {
+                this.futuresByStatus.set(i,
+                    CompletableFuture.completedFuture(Either.right(new Unloaded() {...})));
+            }
+        }
+    }
+
+    // ===== 升温/降温: accessible → FULL =====
+    boolean bl3 = chunkLevelType.isAfter(ChunkLevelType.FULL);
+    boolean bl4 = chunkLevelType2.isAfter(ChunkLevelType.FULL);
+    this.accessible |= bl4;
+    if (!bl3 && bl4) {
+        this.accessibleFuture = chunkStorage.makeChunkAccessible(this);
+    }
+    if (bl3 && !bl4) {
+        this.accessibleFuture.complete(UNLOADED_WORLD_CHUNK);
+        this.accessibleFuture = UNLOADED_WORLD_CHUNK_FUTURE;
+    }
+
+    // ===== 升温/降温: ticking → BLOCK_TICKING =====
+    boolean bl5 = chunkLevelType.isAfter(ChunkLevelType.BLOCK_TICKING);
+    boolean bl6 = chunkLevelType2.isAfter(ChunkLevelType.BLOCK_TICKING);
+    if (!bl5 && bl6) {
+        this.tickingFuture = chunkStorage.makeChunkTickable(this);
+    }
+    if (bl5 && !bl6) {
+        this.tickingFuture.complete(UNLOADED_WORLD_CHUNK);
+        this.tickingFuture = UNLOADED_WORLD_CHUNK_FUTURE;
+    }
+
+    // ===== 升温/降温: entityTicking → ENTITY_TICKING =====
+    boolean bl7 = chunkLevelType.isAfter(ChunkLevelType.ENTITY_TICKING);
+    boolean bl8 = chunkLevelType2.isAfter(ChunkLevelType.ENTITY_TICKING);
+    if (!bl7 && bl8) {
+        if (this.entityTickingFuture != UNLOADED_WORLD_CHUNK_FUTURE) {
+            throw new IllegalStateException();  // 防御：不允许从非 UNLOADED 状态升温
+        }
+        this.entityTickingFuture = chunkStorage.makeChunkEntitiesTickable(this);
+    }
+    if (bl7 && !bl8) {
+        this.entityTickingFuture.complete(UNLOADED_WORLD_CHUNK);
+        this.entityTickingFuture = UNLOADED_WORLD_CHUNK_FUTURE;
+    }
+
+    // ===== 完成：更新 completedLevel =====
+    this.levelUpdateListener.updateLevel(
+        this.pos, this::getCompletedLevel, this.level, this::setCompletedLevel);
+    this.lastTickLevel = this.level;
+}
+```
+
+### makeChunkTickable 的周边依赖
+
+```java
+// ThreadedAnvilChunkStorage.java
+public CompletableFuture<Either<WorldChunk, Unloaded>> makeChunkTickable(ChunkHolder holder) {
+    // 确保周围 margin=1 区块距离内的区块都达到 FULL
+    CompletableFuture<Either<List<Chunk>, Unloaded>> f = this.getRegion(holder, 1,
+        distance -> ChunkStatus.FULL);
+    return f.thenApplyAsync(chunks ->
+        chunks.mapLeft(cs -> (WorldChunk) cs.get(cs.size() / 2)), ...)
+        .thenApplyAsync(either -> either.ifLeft(chunk -> {
+            chunk.runPostProcessing();
+            this.world.disableTickSchedulers(chunk);
+        }), this.mainThreadExecutor);
+}
+```
+
+`getRegion(holder, 1, ...)` 中的 `margin=1` 要求：要使中心区块进入 ticking，其周围 1 个切比雪夫距离内的所有区块必须达到 `FULL`。如果达不到，`makeChunkTickable` 返回的 Future 不会 complete——该区块的 ticking 被挂起，等待异步任务队列再次推动。
+
 ## 参考
 
 - [Discovering Minecraft - ChunkHolder](https://github.com/lovexyn0827/Discovering-Minecraft)（CC0 协议）

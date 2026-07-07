@@ -117,6 +117,55 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 - 光照系统在两个专用阶段运行，由独立线程管理；存档升级系统在 `ChunkSerializer` 中通过 `DataFixer` 介入。
 - 世界生成的详细内容超出了本章范围，将在后续"世界生成"专章详细展开。
 
+## [!ADVANCED] 源码验证
+
+### ChunkStatus 枚举（1.20.1）
+
+```java
+// ChunkStatus.java - 注册顺序
+public static final ChunkStatus EMPTY = register("empty", ...);
+public static final ChunkStatus STRUCTURE_STARTS = register("structure_starts", EMPTY, ...);
+public static final ChunkStatus STRUCTURE_REFERENCES = register("structure_references", STRUCTURE_STARTS, ...);
+public static final ChunkStatus BIOMES = register("biomes", STRUCTURE_REFERENCES, ...);
+public static final ChunkStatus NOISE = register("noise", BIOMES, ...);
+public static final ChunkStatus SURFACE = register("surface", NOISE, ...);
+public static final ChunkStatus CARVERS = register("carvers", SURFACE, ...);
+public static final ChunkStatus FEATURES = register("features", CARVERS, ...);
+public static final ChunkStatus INITIALIZE_LIGHT = register("initialize_light", FEATURES, ...);
+public static final ChunkStatus LIGHT = register("light", INITIALIZE_LIGHT, ...);
+public static final ChunkStatus SPAWN = register("spawn", LIGHT, ...);
+public static final ChunkStatus FULL = register("full", SPAWN, ...);
+```
+
+1.20.1 相比 1.16.4 移除了 `liquid_carvers` 和 `heightmaps`，新增了 `INITIALIZE_LIGHT`。`isAtLeast()` 方法通过比较 `index`（注册序号）判断"是否至少达到某阶段"。
+
+### taskMargin 在注册中的体现
+
+每个 `ChunkStatus` 注册时携带 `taskMargin`，例如：
+
+```java
+// CARVERS: taskMargin=8, shouldAlwaysUpgrade=false
+// LIGHT: taskMargin=1, shouldAlwaysUpgrade=true
+// FULL: taskMargin=0, shouldAlwaysUpgrade=false, chunkType=LEVELCHUNK
+```
+
+`taskMargin` 的实际影响在 `ChunkStatus.getTaskMargin()` 返回后，由 `ThreadedAnvilChunkStorage.getRegion()` 用于确保周围指定切比雪夫距离内的区块达到要求状态。
+
+### ChunkHolder.futuresByStatus
+
+```java
+// ChunkHolder.java
+private final AtomicReferenceArray<CompletableFuture<Either<Chunk, Unloaded>>> futuresByStatus
+    = new AtomicReferenceArray<>(ChunkStatus.createOrderedList().size());
+
+public CompletableFuture<Either<Chunk, Unloaded>> getFutureFor(ChunkStatus leastStatus) {
+    CompletableFuture<Either<Chunk, Unloaded>> f = this.futuresByStatus.get(leastStatus.getIndex());
+    return f == null ? UNLOADED_CHUNK_FUTURE : f;
+}
+```
+
+数组长度 = `ChunkStatus` 数量（12），每个索引对应一个 `ChunkStatus` 阶段的完成 Future。
+
 ## 参考
 
 - [Discovering Minecraft - ChunkStatus 与世界生成](https://github.com/lovexyn0827/Discovering-Minecraft)（CC0 协议）
