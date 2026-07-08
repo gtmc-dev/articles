@@ -1,6 +1,6 @@
 ---
 slug: entity-motion
-index: 0
+index: -1
 chapter-title: 实体运动
 intro-title: 从 Motion 到碰撞箱
 ---
