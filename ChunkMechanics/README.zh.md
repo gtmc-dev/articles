@@ -3,7 +3,6 @@ slug: chunk-system-intro
 intro-title: 绪论
 chapter-title: 区块
 index: -1
-is-advanced: false
 ---
 
 ## 研究背景与意义

@@ -3,7 +3,6 @@ slug: entity-motion-intro
 intro-title: 绪论
 chapter-title: 实体运动
 index: -1
-is-advanced: false
 ---
 
 # 绪论
