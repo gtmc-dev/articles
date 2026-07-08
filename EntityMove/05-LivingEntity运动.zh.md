@@ -1,7 +1,6 @@
 ---
 slug: entity-living-motion
 title: LivingEntity运动机制
-author: lovexyn0827
 description: LivingEntity的自由运动、AI及属性对运动的影响
 index: 5
 is-advanced: false

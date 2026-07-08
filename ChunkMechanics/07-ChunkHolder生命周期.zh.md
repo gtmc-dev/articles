@@ -1,8 +1,6 @@
 ---
 slug: chunk-holder-lifecycle
 title: ChunkHolder 生命周期
-author: BFladderbeanawa
-co-author: lovexyn0827
 description: 三条核心 Future 如何控制区块的三种运行视图，tick() 如何升温降温，以及从 ProtoChunk 到 WorldChunk 到卸载的完整周期。
 index: 7
 is-advanced: false
