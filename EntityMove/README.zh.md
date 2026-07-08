@@ -1,7 +1,7 @@
 ---
 slug: entity-motion-intro
 intro-title: 绪论
-description: Minecraft实体运动研究与应用绪论
+chapter-title: 实体运动
 index: -1
 is-advanced: false
 ---
