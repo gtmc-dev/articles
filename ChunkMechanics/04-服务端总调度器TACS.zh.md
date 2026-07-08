@@ -45,13 +45,16 @@ Long2ObjectMap<ChunkHolder> currentChunkHolders
 ### chunkHolders
 
 ```java
-Long2ObjectMap<ChunkHolder> chunkHolders  // 注意：这个表在 ChunkTicketManager 中
+// ThreadedAnvilChunkStorage.java (Yarn 1.20.1)
+private final Long2ObjectLinkedOpenHashMap<ChunkHolder> currentChunkHolders = new Long2ObjectLinkedOpenHashMap<>();
+private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders = this.currentChunkHolders.clone();
 ```
 
-注意这里有一处命名混淆：`ThreadedAnvilChunkStorage` 本身没有名为 `chunkHolders` 的字段（它用的是 `currentChunkHolders`），但在 Yarn Mapping 较早版本或不同的分析文中，"chunkHolders" 可能指代列表形式的所有 `ChunkHolder`。在 1.20.1 的源码中：
+`ThreadedAnvilChunkStorage` 确实有名为 `chunkHolders` 的字段——它是 `currentChunkHolders` 的 **volatile 快照副本**，用于 `tick()` 和 `save()` 等需要稳定遍历的场景。更新发生在主线程（Minecraft Server），而读取端无需加锁即可安全遍历，避免 `ConcurrentModificationException`。这是一种 **Copy-On-Write** 模式：写入端在主线程更新，读取端零开销。
 
-- `TACS.currentChunkHolders`：按 `long` 索引所有活跃的 `ChunkHolder`
-- `ChunkTicketManager.chunkHolders`：`Set<ChunkHolder>`，收集本轮 tick 中加载等级发生变化的 holder
+> [!NOTE] 与 `ChunkTicketManager.chunkHolders` 的区别
+> - `TACS.chunkHolders`：`Long2ObjectLinkedOpenHashMap<ChunkHolder>`，当前维度**所有**活跃 `ChunkHolder` 的完整映射表，key 为 `ChunkPos.toLong()` 序列化后的 `long`。
+> - `ChunkTicketManager.chunkHolders`：`Set<ChunkHolder>`，仅收集本轮 tick 中**加载等级发生变化的** `ChunkHolder`，用于后续通知回调。
 
 ### chunksToUnload
 

@@ -258,6 +258,29 @@ public CompletableFuture<Either<WorldChunk, Unloaded>> makeChunkTickable(ChunkHo
 
 注意 `chunk.runPostProcessing()` 这一行：在生成过程中，某些操作（如更新栅栏的连接状态、调整红石粉的形状）不能在第 10 阶段（SPAWN）立即执行，因为当时的相邻区块可能还不存在。这些操作被推迟到 `postProcessingLists` 中，在 `makeChunkTickable` 时集中执行——此时 3×3 范围内的区块都已完成生成，这些延迟操作有了完整的上下文。
 
+### makeChunkEntitiesTickable 的 margin=2：为什么实体需要更大范围
+
+与 `makeChunkTickable` 不同，`makeChunkEntitiesTickable` 对实体运算进行准备，它要求更大的范围：
+
+```java
+public CompletableFuture<Either<WorldChunk, ChunkHolder.Unloaded>> makeChunkEntitiesTickable(ChunkHolder chunk) {
+    return this.getRegion(chunk, 2, distance -> ChunkStatus.FULL)
+        .thenApplyAsync(either -> either.mapLeft(chunks -> (WorldChunk)chunks.get(chunks.size() / 2)), this.mainThreadExecutor);
+}
+```
+
+`getRegion(holder, 2, distance -> ChunkStatus.FULL)` 收集了以 holder 为中心，超出 2 个切比雪夫距离外的所有区块（即 5×5 = 25 个区块），等待它们全部达到 `FULL`。
+
+**为什么实体需要 5×5 而不是 3×3？** 实体运算涉及三个方面：
+
+1. **碰撞检测**：实体移动时，其碰撞箱可能跨越多个区块。如果实体位于区块边界附近，它的碰撞检测需要查询相邻区块的方块碰撞箱和实体列表。5×5 的范围保证了即使实体在角落移动，其碰撞检测所需的所有区块都已就绪。
+
+2. **AI 寻路**：实体的寻路系统会在多个区块范围内评估路径。如果路径经过的区块尚未加载，寻路可能失败或产生死路。5×5 的范围为大部分实体（包括玩家、生物、掉落物）的寻路提供了足够的缓冲。
+
+3. **刷怪判定**：敌对生物的生成需要检查 5×5 区块范围内的玩家距离、光照等级和方块类型。如果你的刷怪范围只覆盖 3×3，那么靠近边缘的刷怪判定会失效——因为缺少对更远处玩家的距离判定。
+
+因此，`makeChunkEntitiesTickable` 的 margin=2 是一个**安全边界**，它为实体运算中可能跨区块的所有查询提供了完整的上下文，避免了实体行为异常。
+
 ## 参考
 
 - [Discovering Minecraft - ChunkHolder](https://github.com/lovexyn0827/Discovering-Minecraft)（CC0 协议）

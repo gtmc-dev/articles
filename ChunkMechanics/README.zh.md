@@ -36,6 +36,13 @@ index: -1
 5. **主线程异步任务**：理解 CompletableFuture 在区块管理中的核心作用——几乎所有操作都不是直接被运行，而是作为 Future 被计划，然后在异步任务队列中被执行。
 6. **加载票机制**：Ticket 的类型全表、生命周期、玩家加载、票的传播与过期回收。
 7. **ChunkHolder 生命周期**：三条核心 Future（accessibleFuture、tickingFuture、entityTickingFuture）如何像一个温度计一样控制区块的三种"运行视图"。
+8. **计划刻与区块运行级别**：计划刻如何依赖区块的 BLOCK_TICKING 级别——tickingFutureReadyPredicate 决定计划刻能否执行，以及区块未 ticking 时计划刻的去向。
+9. **随机刻与方块实体刻**：随机刻的抽样机制、ChunkSection 计数器如何跳空、方块实体 ticker 的注册与执行，以及三者如何共同构成"方块刻"。
+10. **实体加载与实体追踪**：实体与方块两套独立管理系统的设计哲学、ServerEntityManager 的职责、EntityTracker 如何同步——以及为什么 ENTITY_TICKING 需要 5×5 FULL。
+11. **保存与卸载流水线**：三级卸载结构（unloadedChunks → chunksToUnload → unloadTaskQueue）、保存节流、ChunkSerializer 的序列化职责，以及 StorageIoWorker 怎么最终写进 .mca。
+12. **POI 与旁路存储**：兴趣点（PointOfInterest）为什么独立于普通区块存储——它的数据结构、方块变化如何触发更新，以及与村民、袭击、流浪商人的查询关系。
+13. **客户端可见性与区块数据包**：服务端如何决定向客户端发送哪些区块、区块数据包与增量更新包的分工、watchDistance 的几何判定，以及 flushUpdates 的批量发送机制。
+14. **Game Event 与区块内监听器**：游戏事件系统与 NC/PP 更新的本质区别、WorldChunk 按 section 管理事件分发器，以及幽匿监听器在区块卸载时的清理。
 
 ## 前置知识
 
