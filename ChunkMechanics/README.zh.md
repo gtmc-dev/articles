@@ -1,6 +1,6 @@
 ---
 slug: chunk-system-intro
-title: 绪论
+intro-title: 绪论
 description: 区块管理系统的研究背景、环境约定与基本结构。
 index: -1
 is-advanced: false
