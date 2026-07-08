@@ -43,6 +43,7 @@ index: -1
 12. **POI 与旁路存储**：兴趣点（PointOfInterest）为什么独立于普通区块存储——它的数据结构、方块变化如何触发更新，以及与村民、袭击、流浪商人的查询关系。
 13. **客户端可见性与区块数据包**：服务端如何决定向客户端发送哪些区块、区块数据包与增量更新包的分工、watchDistance 的几何判定，以及 flushUpdates 的批量发送机制。
 14. **Game Event 与区块内监听器**：游戏事件系统与 NC/PP 更新的本质区别、WorldChunk 按 section 管理事件分发器，以及幽匿监听器在区块卸载时的清理。
+15. **保存节流与 Savestate 现象**：TACS 的 10 秒保存冷却、StorageIoWorker 异步写盘、自动保存/flush/关服的差异，以及 Watchdog 与 OOM 如何形成或打断跨区块状态分叉。
 
 ## 前置知识
 
