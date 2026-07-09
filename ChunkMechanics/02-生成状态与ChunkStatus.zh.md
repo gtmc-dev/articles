@@ -94,12 +94,137 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 
 ### 光照系统
 
-光照计算在 `INITIALIZE_LIGHT` 和 `LIGHT` 两个阶段执行。它由 `ServerLightingProvider` 管理：
+光照系统是区块生成管线中的特殊环节：它并不改变方块布局，而是为已生成的方块计算光照值（亮度）。光照计算由 `ServerLightingProvider` 统一管理，分为 `INITIALIZE_LIGHT` 和 `LIGHT` 两个阶段执行。这两个阶段看似相似，但分工明确：前者负责"告知"光照系统哪些区块列需要光照计算，后者负责实际执行光照传播。
 
-- `INITIALIZE_LIGHT`：为刚生成完地物和洞穴的区块建立初始的天空光和方块光；
-- `LIGHT`：与周围区块协调，处理光照传播。这个阶段要求周围区块也至少达到了 `LIGHT` 或更高。
+#### INITIALIZE_LIGHT vs LIGHT
 
-光照系统的独立线程（Light Engine Thread）与生成线程协作——光照更新器监听区块的状态变化，当相邻区块完成生成时自动触发重新计算。
+**INITIALIZE_LIGHT**（1.20 新增）对应 `ChunkStatus.INITIALIZE_LIGHT`（index=8），`taskMargin=0`。它的职责是为刚完成 `FEATURES` 阶段的区块建立初始光照状态：
+
+1. 标记哪些 **chunk section** 非空（即包含方块，需要光照计算）；
+2. 调用 `ServerLightingProvider.initializeLight(chunk, excludeBlocks)`，内部会为每个非空 section 调用 `setColumnEnabled(pos, true)` 和 `setSectionStatus(pos, false)`；
+3. **不执行完整光照传播**，只是告诉光照系统"这些区块列需要计算光照"。
+
+为什么需要这个阶段？因为光照传播依赖于方块的实际布局——光照系统需要知道哪些 section 有方块（非空），才能正确初始化光源图。
+
+**LIGHT** 对应 `ChunkStatus.LIGHT`（index=9），`taskMargin=1`。它的职责是执行完整的光照传播，确保目标区块及其邻块的光照值正确：
+
+1. 调用 `ServerLightingProvider.light(chunk, excludeBlocks)`，内部会调用 `propagateLight(chunkPos)` 和最终的 `doLightUpdates()`；
+2. 光照传播是跨区块的——一个光源（如火把）可能影响周围多个区块的亮度值；
+3. 完成后，调用 `chunk.setLightOn(true)` 标记该区块光照已就绪。
+
+`taskMargin=1` 的含义是：周围 1 区块范围内的邻块也必须至少完成 `LIGHT`，否则边界光照会不正确（因为光照传播可能跨越边界）。
+
+| 阶段 | taskMargin | 主要动作 | 是否传播光照 | 完成后状态 |
+|---|---|---|---|---|
+| `INITIALIZE_LIGHT` | 0 | `setColumnEnabled()`, `setSectionStatus()` | ❌ 否 | 光照系统知道哪些列需要计算 |
+| `LIGHT` | 1 | `propagateLight()`, `doLightUpdates()` | ✅ 是 | 区块光照值正确，可以发送给客户端 |
+
+#### 异步执行与 CompletableFuture
+
+从 `ChunkStatus.LIGHT` 的 `GenerationTask` 注册代码可以看出，光照任务返回的是 `CompletableFuture<Chunk>`：
+
+```java
+// ChunkStatus.java (LIGHT 阶段注册时)
+LIGHT = register("light", INITIALIZE_LIGHT, 1, PRE_CARVER_HEIGHTMAP, LIGHT_BLOCKING,
+    (targetStatus, executor, world, generator, ..., chunks, chunk) -> {
+        // ...
+        return lightingProvider.light(chunk, isNewChunk)
+            .thenApply(ch -> { chunk.setStatus(ChunkStatus.LIGHT); return ch; });
+    }
+);
+```
+
+这意味着：
+
+1. `light()` 被调用时，任务进入 `ServerLightingProvider` 的队列；
+2. 任务通过 `ChunkTaskPrioritySystem` 路由到 light 线程（Light Engine Thread）；
+3. light 线程执行实际的光照传播（BFS/DFS 遍历光源图）；
+4. 完成后 `CompletableFuture` complete，区块进入下一个状态。
+
+**为什么光照必须异步？** 光照传播是 CPU 密集型操作：需要大范围遍历光源图，计算每个方块的亮度值衰减。如果在主线程执行，大规模世界生成时会导致严重掉刻。1.14 之前光照是同步的，玩家在高速飞行时经常遇到"卡顿 + 服务端无响应"——原因就是主线程被光照计算阻塞了。
+
+1.14 引入异步光照后，light 线程独立于主线程运行，玩家移动时不再因为光照计算而卡顿。
+
+#### 光照传播的基本原理
+
+父类 `LightingProvider` 持有两个 `ChunkLightProvider`：
+
+- **`blockLightProvider`**：处理方块光（火把、岩浆、荧石等光源）；
+- **`skyLightProvider`**：处理天空光（来自天空的自然光，在下界和末地为 null）。
+
+`doLightUpdates()` 调用两者的 `doLightUpdates()`：
+
+```java
+// LightingProvider.java
+public int doLightUpdates() {
+    int i = 0;
+    if (this.blockLightProvider != null) {
+        i += this.blockLightProvider.doLightUpdates();
+    }
+    if (this.skyLightProvider != null) {
+        i += this.skyLightProvider.doLightUpdates();
+    }
+    return i;
+}
+```
+
+`ChunkLightProvider.doLightUpdates()` 的核心：
+
+1. 维护一个**待传播队列**（`field_44735`，类型是 `LongQueue`）；
+2. 从光源位置开始，按 BFS/DFS 规则向周围传播；
+3. 每传播一个方块，根据方块的**透光度**（opacity）衰减亮度值；
+4. 当亮度值降到 0 或无法再传播时停止。
+
+> [!TIP]
+> 光照传播算法本身非常复杂（涉及光源图、增量更新、边界同步等），这超出 ChunkMechanics 的范围。02 章节只需讲"光照系统做什么"和"它如何融入生成管线"，不需深入算法实现——那是光照系统专题的内容。
+
+#### 光照系统与生成管线的协作
+
+光照系统在生成管线中的位置非常关键，时序关系如下：
+
+1. 区块生成到 `FEATURES`（地物、洞穴、结构全部生成完毕）；
+2. 进入 `INITIALIZE_LIGHT`：告诉光照系统"这些列需要光照"；
+3. 进入 `LIGHT`：实际执行光照传播；
+4. 光照完成后，区块可以进入 `SPAWN`（生成初始生物）；
+5. 最终进入 `FULL`（转换为 `WorldChunk`）。
+
+**为什么光照必须在 SPAWN 之前？** 因为生物生成依赖光照值。某些生物只在暗处生成（如僵尸、骷髅），某些只在亮处生成（如动物）。如果光照未计算完成，生物生成器无法正确判断哪些位置可以刷怪——这会导致怪物在明亮的草原上刷新，或者动物在洞穴里刷新。
+
+**为什么光照不能更早？** 因为光照传播依赖最终的方块布局。如果在 `FEATURES` 之前计算光照，后续的地物放置（如大树）会改变方块布局，之前计算的光照就失效了，必须重新计算。放在 `FEATURES` 之后，保证了光照计算时方块布局已经稳定。
+
+#### 光照票的自动管理
+
+在 06 章节"加载票系统"中会详细讲解，这里只需知道：当一个区块需要光照计算时，光照系统会自动添加临时的 **`LIGHT` 票**：
+
+```java
+// 某个区块需要光照计算时
+chunkTicketManager.addTicket(ChunkTicketType.LIGHT, pos, radius, pos);
+```
+
+这张票的作用：
+
+- 确保光照计算期间，目标区块及其邻块保持加载状态；
+- 光照计算完成后，票自动过期；
+- 避免"光照计算到一半，邻块被卸载"的竞态条件。
+
+这就是为什么你在调试时偶尔会在 F3 界面看到某些区块的加载原因是 `light`——那是光照系统自动添加的临时票。
+
+#### shouldAlwaysUpgrade 的强制重算
+
+`ChunkStatus.LIGHT` 和 `INITIALIZE_LIGHT` 都标记为 `shouldAlwaysUpgrade=true`：
+
+```java
+// ChunkStatus.java
+INITIALIZE_LIGHT = register("initialize_light", ..., true, ...);  // shouldAlwaysUpgrade=true
+LIGHT = register("light", ..., true, ...);                         // shouldAlwaysUpgrade=true
+```
+
+这意味着：即使从磁盘加载旧区块时，这两个阶段已经"完成"，系统也会**强制重新执行**。
+
+为什么？因为光照依赖于周围区块的状态——而周围区块可能在保存后被修改了（如玩家放置/破坏方块，或者邻块重新生成）。强制重新计算光照保证了加载后的区块光照是正确的，不会出现"保存时是夜晚，加载后变白天，但光照还是旧的"的情况。
+
+> [!IMPORTANT]
+> 这也是为什么加载旧区块时会感觉"稍微卡一下"——因为即使区块数据已经存在磁盘上，光照系统仍然需要重新计算一遍。这是正确性的代价：与其让玩家看到错误的光照，不如每次加载时重新计算。
 
 ### 存档升级
 
@@ -114,7 +239,7 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 - `ChunkStatus` 定义了 12 个生成阶段，从 `EMPTY` 到 `FULL`，每个阶段对应一个 `GenerationTask` 或 `LoadTask`。
 - `taskMargin` 决定了外圈依赖：一个区块要推进到某阶段，周围一定切比雪夫距离内的区块必须达到最低状态。
 - 生成不可达时，区块的 ChunkStatus 停留在与距离匹配的阶段——不是"不生成"，而是"只生成到能停住的地方"。
-- 光照系统在两个专用阶段运行，由独立线程管理；存档升级系统在 `ChunkSerializer` 中通过 `DataFixer` 介入。
+- 光照系统分为 `INITIALIZE_LIGHT`（标记需要光照的列）和 `LIGHT`（执行实际传播）两个阶段，异步执行在独立线程中，完成后强制重算以保证正确性；存档升级系统在 `ChunkSerializer` 中通过 `DataFixer` 介入。
 - 世界生成的详细内容超出了本章范围，将在后续"世界生成"专章详细展开。
 
 ## [!ADVANCED] 代码走读
