@@ -117,15 +117,15 @@ private void removeGameEventDispatcher(int ySectionCoord) {
 
 所以，dispatcher 的清理不是另开一张全局表扫描，而是 section 内最后一个监听器移除时顺手把这个 section 的分发器从 `gameEventDispatchers` 中删除。空 section 不保留空 dispatcher。
 
-区块卸载时也可以按这个思路理解。第 11 篇已经讲过，卸载不是 `ChunkHolder` 一消失就立刻“蒸发”，而是 TACS 把 holder 从当前表移到待卸载结构，再在卸载任务中执行保存、实体卸载、光照状态刷新等收尾。对于游戏事件监听器来说，关键是方块实体随区块退出运行集合时要被移除或标记移除，对应监听器也应从所在 section 的 dispatcher 中注销；当某个 section 的监听器全部离开后，`removeGameEventDispatcher()` 会把分发器映射项清掉。
+区块卸载时也可以按这个思路理解。第 11 篇已经讲过，卸载是 TACS 把 holder 从当前表移到待卸载结构，再在卸载任务中执行保存、实体卸载、光照状态刷新等收尾。对于游戏事件监听器来说，关键是方块实体随区块退出运行集合时要被移除或标记移除，对应监听器也应从所在 section 的 dispatcher 中注销；当某个 section 的监听器全部离开后，`removeGameEventDispatcher()` 会把分发器映射项清掉。
 
 这也是为什么 `gameEventDispatchers` 放在 `WorldChunk` 上，而不是放在世界级全局列表里：监听器和区块 section 的生命周期天然绑定。区块加载时，方块实体恢复，监听器重新注册；方块实体消失或区块卸载时，监听器移除，空 dispatcher 跟着消失。
 
 ## 与振动系统的关系
 
-`VibrationListener` 是游戏事件监听器的一种特化实现。幽匿感测体、幽匿尖啸体会用它接收特定 `GameEvent`，再根据距离、频率、标签和自身状态决定是否激活。悦灵（`AllayEntity`）也使用振动相关监听器，只是它挂在实体的 `EntityGameEventHandler` 上，而不是 `WorldChunk` 的方块实体监听器映射里。
+`VibrationListener` 是游戏事件监听器的一种特化实现。幽匿感测体、幽匿尖啸体会用它接收特定 `GameEvent`，再根据距离、频率、标签和自身状态决定是否激活。悦灵（`AllayEntity`）也使用振动相关监听器，只是它挂在实体的 `EntityGameEventHandler` 上。
 
-换句话说，振动系统不是和 `GameEvent` 平行的另一套入口，而是建立在游戏事件监听器之上的一组规则：哪些事件能被听见、传播距离是多少、如何换算频率、监听器收到后怎样响应。这些振动传播和频率分类细节，不在本篇展开。
+换句话说，振动系统是建立在游戏事件监听器之上的一组规则：哪些事件能被听见、传播距离是多少、如何换算频率、监听器收到后怎样响应。这些振动传播和频率分类细节，不在本篇展开。
 
 ## 本节要点回顾
 
