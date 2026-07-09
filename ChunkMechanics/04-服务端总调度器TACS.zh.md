@@ -103,6 +103,9 @@ TACS 涉及三种线程/执行器：
 | **生成线程**（`worldGenExecutor`） | 执行世界生成任务（噪声、地物、光照初始化等） | `Worker-Main-N` 线程池 |
 | **光照线程**（通过 `ServerLightingProvider`） | 执行光照计算和传播 | Light Engine 专用线程 |
 
+> [!NOTE]
+> 有关三线程模型的完整创建链路（构造函数的 `TaskExecutor.create()` 调用）、`ChunkTaskPrioritySystem` 的 `createExecutor()` 封装机制，以及 `LevelPrioritizedQueue` 的优先级调度细节，参见 **05-异步任务与三线程模型** 章节。04 本章聚焦于 TACS 本身的协调职责，不重复展开。
+
 ## ChunkTaskPrioritySystem
 
 `ChunkTaskPrioritySystem` 是 TACS 内部的优先级任务调度器。每一个维度有两个 `ChunkTaskPrioritySystem` 实例：
@@ -183,6 +186,59 @@ ChunkHolder setLevel(long pos, int level, @Nullable ChunkHolder holder, int oldL
 
 **为什么第 1 条规则不返回 null？** 如果 holder 已存在（在不可访问范围内有生成任务进行中），`setLevel` 被调用只是更新 level 值而不销毁 holder——生成任务需要 holder 作为容器来存储生成的中间结果。返回 null 会让上层认为"这个区块不需要关注"，而实际上生成线程正在往这个 holder 里写数据。
 
+### setLevel 的完整链路
+
+`setLevel()` 是 TACS 的核心方法，但它不是直接被调用的。从 `ChunkTicketManager` 的票等级传播到 TACS 的 `setLevel()`，再到最终的区块生成完成，是一个完整的闭环。
+
+#### 调用入口：谁调用了 setLevel？
+
+不是直接调用。通过 `ThreadedAnvilChunkStorage.TicketManager.setLevel()` 间接调用：
+
+```java
+// ThreadedAnvilChunkStorage.java line 1491-1492
+protected ChunkHolder setLevel(long pos, int level, @Nullable ChunkHolder holder, int i) {
+    return ThreadedAnvilChunkStorage.this.setLevel(pos, level, holder, i);
+}
+```
+
+`TicketManager` 是 `ChunkTicketManager` 的子类，TACS 构造函数中创建（line 197）：
+```java
+this.ticketManager = new ThreadedAnvilChunkStorage.TicketManager(executor, mainThreadExecutor);
+```
+
+票的等级传播 → `TicketManager.setLevel()` → TACS 的 `setLevel()`。
+
+#### getRegion() 如何驱动生成？
+
+`setLevel()` 创建 `ChunkHolder` 后，生成任务并不是立即开始。当外部调用 `getChunk()` 获取区块时，`getRegion()` 被调用（lines 293-362）：
+
+- `getRegion()` 遍历以目标区块为中心、`(2*margin+1)²` 区域内的所有区块
+- 对每个区块调用 `holder.getChunkAt(requiredStatus, this)`
+- 返回 `CompletableFuture<List<Chunk>>`——当所有周边区块都达到 requiredStatus 时 complete
+
+设计关键：`getRegion()` 收集的不只是目标区块，而是整个外圈依赖区域的所有区块。这是 `taskMargin` 的实现——如果周围区块不满足 status 要求，整个 Future 就不会 resolved。
+
+#### setLevel 的完整时序
+
+1. **票传播完成**：`TicketDistanceLevelPropagator` 更新某个区块的 level
+2. **TicketManager 通知**：`TicketManager.setLevel(pos, newLevel, holder, oldLevel)` 被调用
+3. **TACS.setLevel()**：创建或更新 `ChunkHolder`（4 条规则），设置为 `chunkHolderListDirty = true`
+4. **ChunkHolder.setLevel(level)**：更新内部 level 值，触发 holder 的 `processLevelChange()`
+5. **下次 tick**：`ticketManager.tick()` → `holder.tick(chunkStorage, executor)` → 根据新旧 ChunkLevelType 判断升降温 → 创建对应的 `CompletableFuture`（如 `getChunkAt(FULL, chunkStorage)`）
+6. **异步任务执行**：`CompletableFuture` 被提交到 `ChunkTaskPrioritySystem` → 按优先级排队 → 在 worldgen/light/main 线程上执行
+7. **生成完成**：`chunk.setStatus(nextStatus)` + `holder.setCompletedLevel(completedStatusIndex)` → 触发下一阶段的生成任务
+8. **最终到达 FULL**：`holder.combineSavingFuture(chunk)` → 区块正式变为可访问
+
+#### 为什么要通过 TicketManager 间接调用？
+
+`ChunkTicketManager` 负责"哪些区块需要什么加载等级"，TACS 负责"区块的容器管理"。通过 `TicketManager.setLevel()` 这个中间层，TACS 不需要知道票的存在——它只接受 level 变化通知，然后更新容器状态。
+
+这种职责分离让两个系统解耦：
+- `ChunkTicketManager` 关注"哪些区块应该保持加载（加载票逻辑）"
+- TACS 关注"如何让区块从磁盘/生成器变为可访问（生成链路）"
+
+当票系统认为某个区块不再需要时，只需调用 `setLevel(pos, 33, holder, 31)` ——TACS 会自动处理"如何安全地卸载这个区块"的细节。反之，当票系统认为需要加载时，只需调用 `setLevel(pos, 31, null, 33)` ——TACS 会自动处理"如何创建 holder 并启动生成任务"的细节。
+
 ### chunkHolders 快照：volatile + 克隆的线程安全模式
 
 ```java
@@ -222,6 +278,124 @@ protected void setViewDistance(int watchDistance) {
 ```
 
 注意这里的逻辑：**只在区块的"进入视野/离开视野"状态改变时才发送数据包**。如果一个区块在新旧视距下都在视野内，不会重发——避免了玩家调整视距时的网络风暴。但如果一个区块在新视距下首次进入视野，整个 `ChunkDataS2CPacket` 会被发送到客户端。
+
+### TACS 的 tick 调度循环
+
+TACS 的 `tick()` 不负责生成任务、不负责方块刻——它只做两件"收尾"工作：POI 数据持久化和卸载不需要的区块（回收资源 + 保存脏数据）。
+
+#### 调用入口：ServerChunkManager.tick()
+
+```java
+// ServerChunkManager.java lines 339-351
+public void tick(BooleanSupplier shouldKeepTicking, boolean tickChunks) {
+    this.world.getProfiler().push("purge");
+    this.ticketManager.purge();           // 1. 清理过期票
+    this.tick();                          // 2. 处理票导致的 level 变化
+    this.world.getProfiler().swap("chunks");
+    if (tickChunks) {
+        this.tickChunks();                // 3. 方块刻/实体刻
+    }
+    this.world.getProfiler().swap("unload");
+    this.threadedAnvilChunkStorage.tick(shouldKeepTicking);  // 4. TACS tick
+    this.world.getProfiler().pop();
+    this.initChunkCaches();
+}
+```
+
+步骤 1（`ticketManager.purge()`）清理过期票后，步骤 2（`this.tick()`）调用的不是 TACS 的 `tick()`，而是 `ServerChunkManager.tick()` 的另一个重载：
+
+```java
+// ServerChunkManager.java lines 301-310
+boolean tick() {
+    boolean bl = this.ticketManager.tick(this.threadedAnvilChunkStorage);
+    // ticketManager.tick() 遍历 chunkHolders 集合
+    // 对每个 level 变化的 holder 调用 holder.tick(chunkStorage, mainThreadExecutor)
+    // holder.tick() 根据新旧 ChunkLevelType 升级/降级相应的 Future
+    ...
+}
+```
+
+`ChunkTicketManager.tick()` 内部（line 122）：
+```java
+this.chunkHolders.forEach(holder -> holder.tick(chunkStorage, this.mainThreadExecutor));
+```
+
+完整流程：
+1. `ticketManager.purge()` 清理过期票 → 重新计算 level
+2. 票变化导致 level 变化 → ChunkHolder 被加入 `ticketManager.chunkHolders` 集合
+3. `ticketManager.tick()` 遍历集合 → 每个 holder 调用 `holder.tick()` 完成升降温
+4. 区块的生成任务已被创建（通过 CompletableFuture），但尚未执行
+5. 在主线程异步任务执行阶段（05 章节详解），这些 CompletableFuture 被取出执行
+6. 生成完成后，`holder.setCompletedLevel()` 被调用，TACS 的 `setLevel()` 触发
+
+#### TACS.tick() 的两个阶段
+
+```java
+// ThreadedAnvilChunkStorage.java lines 474-484
+protected void tick(BooleanSupplier shouldKeepTicking) {
+    Profiler profiler = this.world.getProfiler();
+    profiler.push("poi");
+    this.pointOfInterestStorage.tick(shouldKeepTicking);  // 阶段1：POI
+    profiler.swap("chunk_unload");
+    if (!this.world.isSavingDisabled()) {
+        this.unloadChunks(shouldKeepTicking);              // 阶段2：卸载
+    }
+    profiler.pop();
+}
+```
+
+**阶段 1（POI）**：`PointOfInterestStorage.tick()` 处理脏 POI 数据的保存。
+
+**阶段 2（卸载）**：`unloadChunks(shouldKeepTicking)` 内部分三步：
+
+```java
+// ThreadedAnvilChunkStorage.java lines 500-530
+private void unloadChunks(BooleanSupplier shouldKeepTicking) {
+    // 步骤 2a：unloadedChunks → chunksToUnload（最多200，积压超过2000则不限）
+    LongIterator longIterator = this.unloadedChunks.iterator();
+    for (int i = 0; longIterator.hasNext()
+        && (shouldKeepTicking.getAsBoolean() || i < 200 || this.unloadedChunks.size() > 2000);
+        longIterator.remove()) {
+        long l = longIterator.nextLong();
+        ChunkHolder chunkHolder = this.currentChunkHolders.remove(l);
+        if (chunkHolder != null) {
+            this.chunksToUnload.put(l, chunkHolder);
+            this.tryUnloadChunk(l, chunkHolder);
+            i++;
+        }
+    }
+
+    // 步骤 2b：执行卸载任务队列（最多 backlog-2000 个）
+    int j = Math.max(0, this.unloadTaskQueue.size() - 2000);
+    Runnable runnable;
+    while ((shouldKeepTicking.getAsBoolean() || j > 0)
+        && (runnable = this.unloadTaskQueue.poll()) != null) {
+        j--;
+        runnable.run();
+    }
+
+    // 步骤 2c：保存最多 20 个脏区块
+    int k = 0;
+    ObjectIterator<ChunkHolder> objectIterator = this.chunkHolders.values().iterator();
+    while (k < 20 && shouldKeepTicking.getAsBoolean() && objectIterator.hasNext()) {
+        if (this.save(objectIterator.next())) {
+            k++;
+        }
+    }
+}
+```
+
+**步骤 2a 的卸载条件**：
+- `shouldKeepTicking = true`（不掉刻）：卸载至多 200 个区块
+- `shouldKeepTicking = false`（掉刻）：如果 `unloadedChunks.size() > 2000`（积压严重），不限数量强制卸载
+- 每次从 `currentChunkHolders` 移除 holder → 移入 `chunksToUnload` → 调用 `tryUnloadChunk()` 执行异步保存 + 卸载
+
+**步骤 2b**：`unloadTaskQueue` 是 `tryUnloadChunk()` 的保存回调队列（`thenAcceptAsync(..., this.unloadTaskQueue::add)`）。如果队列积压超过 2000，强制执行以减少内存压力。
+
+**步骤 2c**：遍历 `chunkHolders` 快照，保存最多 20 个 `needsSaving=true` 的区块。这 20 个上限是**每个 tick 的保存节流**——避免一次性保存大量区块导致硬盘 IO 峰值。
+
+> [!NOTE]
+> **设计意图**：TACS 的 `tick()` 不负责生成任务、不负责方块刻——它只做两件"收尾"工作：POI 数据持久化和卸载不需要的区块。生成任务和方块刻需要 CPU 资源，应该在其他阶段（05 章节的异步任务、ChunkHolder 的升降温）中处理。TACS 的 `tick()` 只在 tick 末尾做必要的清理和保存。
 
 ## 参考
 

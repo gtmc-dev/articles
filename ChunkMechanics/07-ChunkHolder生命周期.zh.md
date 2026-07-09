@@ -281,9 +281,218 @@ public CompletableFuture<Either<WorldChunk, ChunkHolder.Unloaded>> makeChunkEnti
 
 因此，`makeChunkEntitiesTickable` 的 margin=2 是一个**安全边界**，它为实体运算中可能跨区块的所有查询提供了完整的上下文，避免了实体行为异常。
 
+### getChunkAt() —— 生成请求的入口
+
+**getChunkAt()** 是整个区块生成管线的统一入口。无论是 TACS 内部的 `getRegion()` 等待周围区块，还是 `makeChunkTickable()` 请求区块进入 ticking，还是外部代码通过 `World.getBlockState()` 间接触发，最终都收敛到：
+
+```java
+holder.getChunkAt(someStatus, chunkStorage)
+```
+
+它负责三件事：**去重**（同一区块同一 status 的多次请求共享同一个 Future），**授权**（检查 level 是否允许该 status），**调度**（委托给 TACS 启动异步生成）。
+
+#### getChunkAt() 的核心逻辑
+
+```java
+// ChunkHolder.java lines 276-299
+public CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> getChunkAt(
+    ChunkStatus targetStatus, ThreadedAnvilChunkStorage chunkStorage) {
+    int i = targetStatus.getIndex();
+
+    // 第一步：检查 futuresByStatus 缓存
+    CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> completableFuture = this.futuresByStatus.get(i);
+    if (completableFuture != null) {
+        Either<Chunk, ChunkHolder.Unloaded> either = completableFuture.getNow(field_36388);
+        // 防御性检查：null 值是不合法的
+        if (either == null) {
+            throw chunkStorage.crash(new IllegalStateException(...), "...");
+        }
+        // 如果是正在进行的 Future（未完成），直接返回它
+        if (either == field_36388 || either.right().isEmpty()) {
+            return completableFuture;
+        }
+        // 如果 Future 已经完成但有值（Left），说明已经生成完成但缓存没更新
+        // 继续往下走到生成逻辑（会更新缓存）
+    }
+
+    // 第二步：level 允许 → 启动生成
+    if (ChunkLevels.getStatus(this.level).isAtLeast(targetStatus)) {
+        CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> completableFuture2 =
+            chunkStorage.getChunk(this, targetStatus);
+        this.combineSavingFuture(completableFuture2, "schedule " + targetStatus);
+        this.futuresByStatus.set(i, completableFuture2);
+        return completableFuture2;
+    } else {
+        // level 不允许 → 返回旧 Future 或 UNLOADED
+        return completableFuture == null ? UNLOADED_CHUNK_FUTURE : completableFuture;
+    }
+}
+```
+
+#### 三步流程解析
+
+**第一步：检查 futuresByStatus 缓存**
+
+如果 `futuresByStatus.get(i)` 返回了一个已存在的 Future：
+- 调用 `getNow(field_36388)` 立即获取当前值（不会阻塞）
+- 如果返回的是 `field_36388`（哨兵对象，代表"Future 正在被处理中"）→ 直接返回这个 Future，多个调用者共享同一个 Future
+- 如果返回的不是 `field_36388` 且 `either.right().isEmpty()`（说明 Future 已经完成且返回了 Left 值，即区块已生成）→ 直接返回这个 Future
+- 如果返回 null → 触发崩溃，这是一致性断言（futuresByStatus 中不应该存储 null）
+- 如果 Future 已经完成但返回了 `Unloaded`（Right 值）→ 说明之前的生成失败了，继续往下走重新启动
+
+**第二步：判断 level 是否允许**
+
+`ChunkLevels.getStatus(this.level).isAtLeast(targetStatus)` 检查当前加载等级是否允许目标 ChunkStatus。例如：
+
+- level=32（BLOCK_TICKING）允许请求 FULL、FEATURES 等
+- level=45（INACCESSIBLE）不允许请求任何 ChunkStatus
+
+如果 level 不允许 → 返回缓存的 Future（如果有）或 `UNLOADED_CHUNK_FUTURE`（如果没有）。这意味着"等级不够，无法启动生成"。
+
+**第三步：启动生成**
+
+- 委托给 `chunkStorage.getChunk(this, targetStatus)` —— TACS 负责实际的生成调度
+- 将这个 Future 通过 `combineSavingFuture()` 链接到 `savingFuture`（下一节详述）
+- 写入 `futuresByStatus.set(i, completableFuture2)` 以便后续复用
+
+#### 为什么需要第一步检查？
+
+第 280 行的 `if (either == field_36388)` 是关键：
+
+- `field_36388` 是一个哨兵对象，代表"Future 正在被处理中"
+- 当 `getNow(defaultValue)` 返回 `field_36388` 时，说明 Future 还没完成——返回它是安全的（等待者可以注册回调）
+- 如果 Future 已经完成（不是 `field_36388`），但 `either.right()` 有值（`Unloaded`）—— 说明之前的生成失败了，需要重新启动
+- 如果 Future 已经完成且 `either.right().isEmpty()`（说明是 Left 值）—— 说明区块已经生成完成，直接返回这个 Future
+
+这个检查保证了：同一区块同一 status 的多次请求**不会启动多次生成**——它们共享同一个 Future，只有一个生成任务会被提交。
+
+#### getChunkAt() 在生成管线中的位置
+
+`getChunkAt()` 是整个区块生成管线的**统一入口**。它的调用者包括：
+
+- `TACS.getRegion()` —— 等待周围区块达到某个 status
+- `TACS.makeChunkTickable()` —— 请求区块进入 BLOCK_TICKING
+- `TACS.makeChunkEntitiesTickable()` —— 请求区块进入 ENTITY_TICKING
+- `TACS.getChunk()` —— 递归生成某个 status 的区块
+- 外部代码通过 `World.getBlockState()` 间接触发（如果区块不在内存中）
+
+无论从哪条路径进入，最终都会调用 `holder.getChunkAt(someStatus, chunkStorage)`。它负责：
+
+- **去重**：同一区块同一 status 的多次请求共享同一个 Future
+- **授权**：检查 level 是否允许该 status
+- **调度**：委托给 TACS 启动异步生成
+
+### completedLevel 与 savingFuture 链
+
+在前面的章节中，我们提到 `ChunkTaskPrioritySystem` 使用 **completedLevel** 而不是 **level** 作为优先级的依据（见 05 章）。这一节解释 `completedLevel` 的含义，以及它与 `savingFuture` 的关系。
+
+#### completedLevel 的定义
+
+`completedLevel` 是 `ChunkHolder` 的一个字段，表示**当前已完成的最高 ChunkStatus 的 index**：
+
+```java
+// ChunkHolder.java lines 96-98（构造函数中）
+this.lastTickLevel = ChunkLevels.INACCESSIBLE + 1;
+this.level = this.lastTickLevel;
+this.completedLevel = this.lastTickLevel;  // 初始化为不可访问
+```
+
+```java
+// ChunkHolder.java lines 329-335
+public int getCompletedLevel() {
+    return this.completedLevel;  // 当前已完成的最高 ChunkStatus 的 index
+}
+
+private void setCompletedLevel(int level) {
+    this.completedLevel = level;  // 被 chunkStatus 推进时调用
+}
+```
+
+初始值为 `ChunkLevels.INACCESSIBLE + 1`，表示"尚未完成任何生成阶段"。当区块的生成阶段推进时（如从 FEATURES 进入 INITIALIZE_LIGHT），`setCompletedLevel(newStatusIndex)` 被调用。
+
+#### completedLevel 的更新时机
+
+当 `tick()` 推进区块的生命周期时，会调用 `levelUpdateListener.updateLevel()`：
+
+```java
+// ChunkHolder.java line 430
+this.levelUpdateListener.updateLevel(
+    this.pos, this::getCompletedLevel, this.level, this::setCompletedLevel
+);
+```
+
+这意味着当一个区块完成了一个生成阶段：
+
+1. `completedLevel` 增加（如从 7 到 8）
+2. `levelUpdateListener` 被通知
+3. `ChunkTaskPrioritySystem` 更新该区块在所有优先级队列中的位置
+4. 结果：该区块的后续任务（如下一个 ChunkStatus）优先级降低（因为已经"完成度更高"）
+
+这与 05 章节中"为什么用 completedLevel 而不是 level 作为优先级"直接相关：已经完成到 FEATURES 的区块，其后续 LIGHT 任务的优先级低于一个虽 level 更高但尚未完成 BIOMES 的区块的任务。
+
+#### savingFuture 的链式构建
+
+`savingFuture` 是 `ChunkHolder` 的核心 Future，初始值为已完成：
+
+```java
+// ChunkHolder.java line 57
+private CompletableFuture<Chunk> savingFuture = CompletableFuture.completedFuture(null);
+```
+
+每次 `combineSavingFuture()` 调用都在链上追加一个新环节：
+
+```java
+// ChunkHolder.java lines 301-315
+protected void combineSavingFuture(String thenDesc, CompletableFuture<?> then) {
+    if (this.actionStack != null) {
+        this.actionStack.push(new ChunkHolder.MultithreadAction(Thread.currentThread(), then, thenDesc));
+    }
+
+    this.savingFuture = this.savingFuture.thenCombine(
+        (CompletionStage<? extends Object>)then,
+        (chunk, object) -> (Chunk)chunk
+    );
+}
+
+// 重载版本：接受 Either<Chunk, Unloaded> 类型的 Future
+private void combineSavingFuture(CompletableFuture<? extends Either<? extends Chunk, ChunkHolder.Unloaded>> then, String thenDesc) {
+    if (this.actionStack != null) {
+        this.actionStack.push(new ChunkHolder.MultithreadAction(Thread.currentThread(), then, thenDesc));
+    }
+
+    this.savingFuture = this.savingFuture.thenCombine(then, (chunk, either) -> 
+        either.map(chunkx -> chunkx, unloaded -> (Chunk)chunk)
+    );
+}
+```
+
+这个链式构建的意义：
+
+- 区块生成管线的每个阶段（EMPTY → STRUCTURE_STARTS → ... → FULL）都会追加到 `savingFuture`
+- 当所有阶段都完成时，`savingFuture` 才 complete
+- 任何需要"等待这个区块彻底生成完毕"的代码，只需等待 `savingFuture`
+
+#### savingFuture 的实际使用
+
+当 `tick()` 推进 `accessibleFuture`/`tickingFuture`/`entityTickingFuture` 时，它们也被链接到 `savingFuture`：
+
+```java
+// ChunkHolder.java lines 388, 401, 418（升温时）
+this.combineSavingFuture(this.accessibleFuture, "full");
+this.combineSavingFuture(this.tickingFuture, "ticking");
+this.combineSavingFuture(this.entityTickingFuture, "entity ticking");
+```
+
+这保证了：只有当所有生成阶段**和**所有运行视图都完成后，`savingFuture` 才会 complete。任何降级（UNLOADED）都会导致 `suchUnloaded` 异常，标记链为失败。
+
+#### 为什么 savingFuture 需要这么复杂？
+
+如果没有 `savingFuture`，外部代码需要自己追踪"这个区块的哪个生成阶段完成了"——这需要暴露 `futuresByStatus` 并让外部代码注册多个回调。`savingFuture` 把复杂度封装在 `ChunkHolder` 内部：外部只需要等待一个 Future，内部通过 `thenCombine` 链自动管理所有子 Future 的依赖性。
+
 ## 参考
 
 - [Discovering Minecraft - ChunkHolder](https://github.com/lovexyn0827/Discovering-Minecraft)（CC0 协议）
 - `net.minecraft.server.world.ChunkHolder`
 - `net.minecraft.server.world.ThreadedAnvilChunkStorage`
 - `net.minecraft.server.world.ChunkTicketManager`
+- `net.minecraft.world.chunk.ChunkStatus`
