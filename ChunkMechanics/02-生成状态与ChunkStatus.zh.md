@@ -96,6 +96,8 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 
 光照系统是区块生成管线中的特殊环节：它并不改变方块布局，而是为已生成的方块计算光照值（亮度）。光照计算由 `ServerLightingProvider` 统一管理，分为 `INITIALIZE_LIGHT` 和 `LIGHT` 两个阶段执行。这两个阶段看似相似，但分工明确：前者负责"告知"光照系统哪些区块列需要光照计算，后者负责实际执行光照传播。
 
+本节只解释光照如何嵌入 `ChunkStatus` 生成管线。利用 `LIGHT` 阶段积压来阻塞区块进入 `FULL` 的现象，见 [光照抑制现象](./20-光照抑制现象.zh.md)。
+
 #### INITIALIZE_LIGHT vs LIGHT
 
 **INITIALIZE_LIGHT**（1.20 新增）对应 `ChunkStatus.INITIALIZE_LIGHT`（index=8），`taskMargin=0`。它的职责是为刚完成 `FEATURES` 阶段的区块建立初始光照状态：
