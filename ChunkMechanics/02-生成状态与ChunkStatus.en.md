@@ -14,20 +14,20 @@ The answer lies in `ChunkStatus`.
 
 `ChunkStatus` corresponds to a stage in chunk generation. In 1.20.1, there are **12 stages**, arranged in order:
 
-| Index | Status | Primary Task |
-|------|------|----------|
-| 0 | `EMPTY` | Starting point, contains no data |
-| 1 | `STRUCTURE_STARTS` | Determine which structures (villages, strongholds) may start in the chunk |
-| 2 | `STRUCTURE_REFERENCES` | Add structure references for coordination between structures during world generation |
-| 3 | `BIOMES` | Determine biomes (based on noise sampling) |
-| 4 | `NOISE` | Generate rough terrain outline and bedrock layer |
-| 5 | `SURFACE` | Replace blocks near the surface (e.g., stone → dirt, grass) |
-| 6 | `CARVERS` | Generate caves and canyons |
-| 7 | `FEATURES` | Generate features (trees, ores, flowers, etc.) |
-| 8 | `INITIALIZE_LIGHT` | Initialize lighting calculations (added in 1.20) |
-| 9 | `LIGHT` | Complete lighting calculations |
-| 10 | `SPAWN` | Spawn initial creatures (wild animals, etc.) |
-| 11 | `FULL` | Convert `ProtoChunk` to `WorldChunk` |
+| Index | Status                 | Primary Task                                                                         |
+| ----- | ---------------------- | ------------------------------------------------------------------------------------ |
+| 0     | `EMPTY`                | Starting point, contains no data                                                     |
+| 1     | `STRUCTURE_STARTS`     | Determine which structures (villages, strongholds) may start in the chunk            |
+| 2     | `STRUCTURE_REFERENCES` | Add structure references for coordination between structures during world generation |
+| 3     | `BIOMES`               | Determine biomes (based on noise sampling)                                           |
+| 4     | `NOISE`                | Generate rough terrain outline and bedrock layer                                     |
+| 5     | `SURFACE`              | Replace blocks near the surface (e.g., stone → dirt, grass)                          |
+| 6     | `CARVERS`              | Generate caves and canyons                                                           |
+| 7     | `FEATURES`             | Generate features (trees, ores, flowers, etc.)                                       |
+| 8     | `INITIALIZE_LIGHT`     | Initialize lighting calculations (added in 1.20)                                     |
+| 9     | `LIGHT`                | Complete lighting calculations                                                       |
+| 10    | `SPAWN`                | Spawn initial creatures (wild animals, etc.)                                         |
+| 11    | `FULL`                 | Convert `ProtoChunk` to `WorldChunk`                                                 |
 
 Each stage has a corresponding **`GenerationTask`** (when generating from scratch) or **`LoadTask`** (when loading from disk), defining the operations needed to advance from the previous state to the current state. The `ChunkStatus.ChunkType` enum distinguishes two chunk types:
 
@@ -36,7 +36,7 @@ Each stage has a corresponding **`GenerationTask`** (when generating from scratc
 
 > [!TIP]
 > A mnemonic for generation-to-completion stages (1.16.4 version, slightly different from 1.20.1):
-> 
+>
 > Empty, starts, references, biomes, noise, surface.
 > Carvers, features, lighting, spawn — done at last.
 
@@ -50,18 +50,18 @@ Take noise terrain as an example: to generate terrain at `(0, 0)`, the generator
 
 Each stage's `taskMargin` is roughly:
 
-| Stage | taskMargin | Explanation |
-|------|-----------|------|
-| `STRUCTURE_STARTS` | 0 | Structure starting positions depend only on this chunk |
-| `STRUCTURE_REFERENCES` | 8 | Needs reference information from surrounding structures |
-| `BIOMES` | 8 | Biome interpolation needs surrounding noise data |
-| `NOISE` | 8 | Terrain generation needs surrounding biome information |
-| `SURFACE` | 8 | Surface building needs surrounding noise information |
-| `CARVERS` | 8 | Cave generation needs to connect to surrounding chunks |
-| `FEATURES` | 8 | Features (like large trees) may cross chunk boundaries |
-| `INITIALIZE_LIGHT` | 0 | Only initializes this chunk's lighting |
-| `LIGHT` | 1 | Lighting calculations need coordination with neighboring chunks |
-| `FULL` | 0 | Conversion requires no external information |
+| Stage                  | taskMargin | Explanation                                                     |
+| ---------------------- | ---------- | --------------------------------------------------------------- |
+| `STRUCTURE_STARTS`     | 0          | Structure starting positions depend only on this chunk          |
+| `STRUCTURE_REFERENCES` | 8          | Needs reference information from surrounding structures         |
+| `BIOMES`               | 8          | Biome interpolation needs surrounding noise data                |
+| `NOISE`                | 8          | Terrain generation needs surrounding biome information          |
+| `SURFACE`              | 8          | Surface building needs surrounding noise information            |
+| `CARVERS`              | 8          | Cave generation needs to connect to surrounding chunks          |
+| `FEATURES`             | 8          | Features (like large trees) may cross chunk boundaries          |
+| `INITIALIZE_LIGHT`     | 0          | Only initializes this chunk's lighting                          |
+| `LIGHT`                | 1          | Lighting calculations need coordination with neighboring chunks |
+| `FULL`                 | 0          | Conversion requires no external information                     |
 
 > [!IMPORTANT]
 > The existence of `taskMargin` means: **even if loading tickets only require loading chunks in the central area, chunks within a certain surrounding range will also be triggered to the corresponding ChunkStatus**. This is why terrain shown by F3+G is always one ring larger than the strong loading range — those outer ring chunks don't participate in ticking, but their generation is partially complete.
@@ -211,6 +211,7 @@ interface GenerationTask {
 Scheduling logic in `runGenerationTask()`: it takes the middle chunk from the `chunks` list (collected by `getRegion` from surrounding chunks) as the target, calls `generationTask.doWork()`. After task completion, it marks the current stage complete with `chunk.setStatus(this)`, then passes the result to `futuresByStatus[this.index]`, triggering Futures waiting for this stage.
 
 Two design details worth noting:
+
 1. **Tasks execute on independent generation threads** (`worldGenExecutor`), not the main thread. This is why `CompletableFuture` is necessary — the main thread cannot block waiting for generation to complete.
 2. **getRegion's margin parameter**: For `makeChunkTickable`, `margin=1` means requiring all surrounding 9 chunks (3×3) to reach `FULL`. This is not taskMargin — taskMargin controls propagation **within the same stage**, while margin controls **dependencies between different stages**.
 

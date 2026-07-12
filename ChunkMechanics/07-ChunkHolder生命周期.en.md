@@ -31,11 +31,11 @@ private volatile CompletableFuture<Either<WorldChunk, Unloaded>> entityTickingFu
     = UNLOADED_WORLD_CHUNK_FUTURE;
 ```
 
-| Future | Meaning | When completed | Corresponding ChunkLevelType |
-|---|---|---|---|
-| `accessibleFuture` | Chunk data available for read/write | level ≤ 33 and chunk loaded | `FULL` |
-| `tickingFuture` | Block ticking can execute | level ≤ 32 and surrounding chunks reached FULL | `BLOCK_TICKING` |
-| `entityTickingFuture` | Entity ticking can execute | level ≤ 31 and chunk entered ticking | `ENTITY_TICKING` |
+| Future                | Meaning                             | When completed                                 | Corresponding ChunkLevelType |
+| --------------------- | ----------------------------------- | ---------------------------------------------- | ---------------------------- |
+| `accessibleFuture`    | Chunk data available for read/write | level ≤ 33 and chunk loaded                    | `FULL`                       |
+| `tickingFuture`       | Block ticking can execute           | level ≤ 32 and surrounding chunks reached FULL | `BLOCK_TICKING`              |
+| `entityTickingFuture` | Entity ticking can execute          | level ≤ 31 and chunk entered ticking           | `ENTITY_TICKING`             |
 
 The initial value `UNLOADED_WORLD_CHUNK_FUTURE` is an **already completed** Future with value `Either.right(Unloaded.INSTANCE)` — indicating "unavailable." Any code waiting on this Future immediately gets an "unavailable" result.
 
@@ -137,6 +137,7 @@ public CompletableFuture<Either<WorldChunk, ChunkHolder.Unloaded>> makeChunkTick
 ```
 
 Wait for a 3×3 region, then run post-processing. After this completes, `tickingFuture` is resolved, the chunk can execute:
+
 - Scheduled ticks (Scheduled Tick)
 - Random ticks (Random Tick)
 - Block entity ticks (Block Entity Tick)
@@ -302,6 +303,7 @@ public CompletableFuture<Either<List<Chunk>, ChunkHolder.Unloaded>> getRegion(
 ```
 
 Key design:
+
 - **All-or-nothing**: If any chunk in the region is unavailable, the entire region is considered unavailable.
 - **Different margins for different needs**: `makeChunkTickable` uses margin=1 (3×3), `makeChunkEntitiesTickable` uses margin=2 (5×5).
 - **Distance-based status requirement**: Center chunks need higher status (FULL), farther chunks may only need lower status.

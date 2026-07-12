@@ -53,6 +53,7 @@ private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders = this.c
 `ThreadedAnvilChunkStorage` 确实有名为 `chunkHolders` 的字段——它是 `currentChunkHolders` 的 **volatile 快照副本**，用于 `tick()` 和 `save()` 等需要稳定遍历的场景。更新发生在主线程（Minecraft Server），而读取端无需加锁即可安全遍历，避免 `ConcurrentModificationException`。这是一种 **Copy-On-Write** 模式：写入端在主线程更新，读取端零开销。
 
 > [!NOTE] 与 `ChunkTicketManager.chunkHolders` 的区别
+>
 > - `TACS.chunkHolders`：`Long2ObjectLinkedOpenHashMap<ChunkHolder>`，当前维度**所有**活跃 `ChunkHolder` 的完整映射表，key 为 `ChunkPos.toLong()` 序列化后的 `long`。
 > - `ChunkTicketManager.chunkHolders`：`Set<ChunkHolder>`，仅收集本轮 tick 中**加载等级发生变化的** `ChunkHolder`，用于后续通知回调。
 
@@ -84,24 +85,24 @@ LongSet chunksToUnload
 
 TACS 不是一个孤立的类——它在同一维度下协调着多个独立子系统：
 
-| 子系统 | 在 TACS 中的接入点 |
-|---|---|
-| **区块管理器**（`ServerChunkManager`） | TACS 是它的核心字段 `this.chunkStorage` |
-| **加载票管理器**（`ChunkTicketManager`） | TACS 持有 `this.ticketManager`，并在 `tick()` 中调用它 |
-| **光照引擎**（`ServerLightingProvider`） | TACS 持有 `this.lightingProvider`，在区块状态变化时通知它 |
+| 子系统                                   | 在 TACS 中的接入点                                              |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| **区块管理器**（`ServerChunkManager`）   | TACS 是它的核心字段 `this.chunkStorage`                         |
+| **加载票管理器**（`ChunkTicketManager`） | TACS 持有 `this.ticketManager`，并在 `tick()` 中调用它          |
+| **光照引擎**（`ServerLightingProvider`） | TACS 持有 `this.lightingProvider`，在区块状态变化时通知它       |
 | **POI 存储**（`PointOfInterestStorage`） | TACS 持有 `this.pointOfInterestStorage`，区块保存时同步保存 POI |
-| **实体跟踪**（`EntityTracker`） | TACS 持有 `this.entityTrackers`，管理实体位置追踪与客户端同步 |
-| **NBT 存取**（`StorageIoWorker`） | TACS 通过 `VersionedChunkStorage` 间接管理 |
+| **实体跟踪**（`EntityTracker`）          | TACS 持有 `this.entityTrackers`，管理实体位置追踪与客户端同步   |
+| **NBT 存取**（`StorageIoWorker`）        | TACS 通过 `VersionedChunkStorage` 间接管理                      |
 
 ## 三类执行器
 
 TACS 涉及三种线程/执行器：
 
-| 执行器 | 用途 | 线程 |
-|---|---|---|
-| **主线程执行器**（`mainThreadExecutor`） | 执行不涉及 IO 和生成的区块管理任务 | 服务端主线程 |
-| **生成线程**（`worldGenExecutor`） | 执行世界生成任务（噪声、地物、光照初始化等） | `Worker-Main-N` 线程池 |
-| **光照线程**（通过 `ServerLightingProvider`） | 执行光照计算和传播 | Light Engine 专用线程 |
+| 执行器                                        | 用途                                         | 线程                   |
+| --------------------------------------------- | -------------------------------------------- | ---------------------- |
+| **主线程执行器**（`mainThreadExecutor`）      | 执行不涉及 IO 和生成的区块管理任务           | 服务端主线程           |
+| **生成线程**（`worldGenExecutor`）            | 执行世界生成任务（噪声、地物、光照初始化等） | `Worker-Main-N` 线程池 |
+| **光照线程**（通过 `ServerLightingProvider`） | 执行光照计算和传播                           | Light Engine 专用线程  |
 
 > [!NOTE]
 > 有关三线程模型的完整创建链路（构造函数的 `TaskExecutor.create()` 调用）、`ChunkTaskPrioritySystem` 的 `createExecutor()` 封装机制，以及 `LevelPrioritizedQueue` 的优先级调度细节，参见 **05-异步任务与三线程模型** 章节。04 本章聚焦于 TACS 本身的协调职责，不重复展开。
@@ -202,6 +203,7 @@ protected ChunkHolder setLevel(long pos, int level, @Nullable ChunkHolder holder
 ```
 
 `TicketManager` 是 `ChunkTicketManager` 的子类，TACS 构造函数中创建（line 197）：
+
 ```java
 this.ticketManager = new ThreadedAnvilChunkStorage.TicketManager(executor, mainThreadExecutor);
 ```
@@ -234,6 +236,7 @@ this.ticketManager = new ThreadedAnvilChunkStorage.TicketManager(executor, mainT
 `ChunkTicketManager` 负责"哪些区块需要什么加载等级"，TACS 负责"区块的容器管理"。通过 `TicketManager.setLevel()` 这个中间层，TACS 不需要知道票的存在——它只接受 level 变化通知，然后更新容器状态。
 
 这种职责分离让两个系统解耦：
+
 - `ChunkTicketManager` 关注"哪些区块应该保持加载（加载票逻辑）"
 - TACS 关注"如何让区块从磁盘/生成器变为可访问（生成链路）"
 
@@ -316,11 +319,13 @@ boolean tick() {
 ```
 
 `ChunkTicketManager.tick()` 内部（line 122）：
+
 ```java
 this.chunkHolders.forEach(holder -> holder.tick(chunkStorage, this.mainThreadExecutor));
 ```
 
 完整流程：
+
 1. `ticketManager.purge()` 清理过期票 → 重新计算 level
 2. 票变化导致 level 变化 → ChunkHolder 被加入 `ticketManager.chunkHolders` 集合
 3. `ticketManager.tick()` 遍历集合 → 每个 holder 调用 `holder.tick()` 完成升降温
@@ -386,6 +391,7 @@ private void unloadChunks(BooleanSupplier shouldKeepTicking) {
 ```
 
 **步骤 2a 的卸载条件**：
+
 - `shouldKeepTicking = true`（不掉刻）：卸载至多 200 个区块
 - `shouldKeepTicking = false`（掉刻）：如果 `unloadedChunks.size() > 2000`（积压严重），不限数量强制卸载
 - 每次从 `currentChunkHolders` 移除 holder → 移入 `chunksToUnload` → 调用 `tryUnloadChunk()` 执行异步保存 + 卸载

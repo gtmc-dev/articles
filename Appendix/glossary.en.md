@@ -7,7 +7,6 @@ banner:
 title: Glossary
 ---
 
-
 ## Overview
 
 This chapter explains the specialized terms and vocabulary used throughout GTMC.

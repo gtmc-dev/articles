@@ -26,11 +26,11 @@ enum Status {
 
 三个状态分别表示：
 
-| 状态 | 含义 |
-|---|---|
-| `FRESH` | 默认状态，实体管理器还没有读过这个 chunk 的实体数据 |
-| `PENDING` | 已经发起异步读取，正在等待实体数据返回 |
-| `LOADED` | 实体数据已经读入内存，或确认该 chunk 没有实体数据 |
+| 状态      | 含义                                                |
+| --------- | --------------------------------------------------- |
+| `FRESH`   | 默认状态，实体管理器还没有读过这个 chunk 的实体数据 |
+| `PENDING` | 已经发起异步读取，正在等待实体数据返回              |
+| `LOADED`  | 实体数据已经读入内存，或确认该 chunk 没有实体数据   |
 
 正常转换路径是 `FRESH -> scheduleRead() -> PENDING -> loadChunks() -> LOADED`。这个状态机的设计重点是避免覆盖旧实体数据：`FRESH` 必须先读，再合并或确认，再保存。问题也出在这里：`PENDING` 是等待态，如果异步读取永远不完成，它没有自动超时和回滚。
 
@@ -122,7 +122,6 @@ public boolean isLoaded(long chunkPos) {
 > [!IMPORTANT]
 > 这里的“计划刻失效”不是计划刻对象消失。它们仍可能留在区块层计划器中，只是世界层计划器每次收集时都因为 `isChunkLoaded()` 为 false 而跳过。
 
-
 ### 实体卸载的重试路径与崩服链路
 
 **正常 tick 中的重试路径**
@@ -147,7 +146,7 @@ public void updateTrackingStatus(long chunkPos, EntityTrackingStatus trackingSta
 
 ```java
 private void unloadChunks() {
-    this.pendingUnloads.removeIf(pos -> 
+    this.pendingUnloads.removeIf(pos ->
         this.trackingStatuses.get(pos) != EntityTrackingStatus.HIDDEN || this.unload(pos));
 }
 ```
@@ -170,15 +169,16 @@ private boolean unload(long chunkPos) {
 
 两条线的对比:
 
-| | 区块数据卸载(TACS) | 实体数据卸载(ServerEntityManager) |
-|---|---|---|
-| 触发 | `setLevel()` → `unloadedChunks` | `ChunkHolder.tick()` 降温 → `updateTrackingStatus(HIDDEN)` |
-| 卸载入口 | `unloadChunks()` → `tryUnloadChunk()` | `pendingUnloads.removeIf(..., this::unload(pos))` |
-| 保存检查 | `chunk.needsSaving()` | `trySave()` → 检查 `managedStatuses` |
-| PENDING 影响 | ❌ 不受影响(正常完成) | ✅ 返回 false,留在 `pendingUnloads` 重试 |
-| 设计意图 | 保证区块数据一致写盘 | 保证实体数据不被覆盖旧数据 |
+|              | 区块数据卸载(TACS)                    | 实体数据卸载(ServerEntityManager)                          |
+| ------------ | ------------------------------------- | ---------------------------------------------------------- |
+| 触发         | `setLevel()` → `unloadedChunks`       | `ChunkHolder.tick()` 降温 → `updateTrackingStatus(HIDDEN)` |
+| 卸载入口     | `unloadChunks()` → `tryUnloadChunk()` | `pendingUnloads.removeIf(..., this::unload(pos))`          |
+| 保存检查     | `chunk.needsSaving()`                 | `trySave()` → 检查 `managedStatuses`                       |
+| PENDING 影响 | ❌ 不受影响(正常完成)                 | ✅ 返回 false,留在 `pendingUnloads` 重试                   |
+| 设计意图     | 保证区块数据一致写盘                  | 保证实体数据不被覆盖旧数据                                 |
 
 **正常 tick 中 PENDING 的表现**:
+
 - 区块方块数据和流体照常保存,`ChunkHolder` 正常从 `currentChunkHolders` 移除
 - 每 gt 实体管理器尝试保存,但因为 `trySave()` 返回 false,一直失败
 - 这是一个**无上限的重试循环**:chunk 永远留在 `pendingUnloads` 中,每 gt 浪费一次 `trySave()` 调用
@@ -241,31 +241,34 @@ halt(1)
 > **为什么这是 "PendingChunk 更常见的用法"**:
 >
 > 相比正常用户关服遇到死锁(被动触发),更常见的场景是**主动构造 PENDING 状态**(通过 OOM 或实体数据损坏),然后:
+>
 > 1. 触发 save-all 或关服命令
 > 2. `flush()` 被调用 → 阻塞在 `awaitAll()`
 > 3. 服务器 "卡死" → Watchdog 强制 `halt(1)`
 > 4. 实现强制崩服
 >
 > 这与 `shouldDelayShutdown()` 死锁(line 492 的 `currentChunkHolders`)是**两条不同的死锁路径**:
+>
 > - `shouldDelayShutdown()` 死锁:区块数据路径(currentChunkHolders 清不空)
 > - `flush()` 死锁:实体数据路径(IO Future 永不 complete)
+
 ### `PENDING` 卡住的现象
 
 当一个区块的实体状态永久停在 `PENDING`，表面现象会非常混合：
 
-| 方面 | 表现 |
-|---|---|
-| 方块数据 | 通常仍可见,玩家可能还能交互 |
-| 方块刻 | 取决于区块运行级别和具体路径 |
-| 计划刻 | 永久无法通过 `tickingFutureReadyPredicate` |
-| 流体更新 | 依赖计划刻,可能停止扩散 |
-| 红石元件 | 中继器、比较器、活塞等行为会停住 |
-| 随机刻 | 仍受区块运行级别控制,但常与异常区域一起出现 |
-| 实体 | 可能部分缺失或完全未挂载 |
-| 保存 | `trySave()` 遇到 `PENDING` 返回 `false` |
+| 方面           | 表现                                                                    |
+| -------------- | ----------------------------------------------------------------------- |
+| 方块数据       | 通常仍可见,玩家可能还能交互                                             |
+| 方块刻         | 取决于区块运行级别和具体路径                                            |
+| 计划刻         | 永久无法通过 `tickingFutureReadyPredicate`                              |
+| 流体更新       | 依赖计划刻,可能停止扩散                                                 |
+| 红石元件       | 中继器、比较器、活塞等行为会停住                                        |
+| 随机刻         | 仍受区块运行级别控制,但常与异常区域一起出现                             |
+| 实体           | 可能部分缺失或完全未挂载                                                |
+| 保存           | `trySave()` 遇到 `PENDING` 返回 `false`                                 |
 | 卸载(区块数据) | ✅ 正常完成(`tryUnloadChunk` → `save(chunk)` → `chunksToUnload.remove`) |
-| 卸载(实体数据) | ❌ 每 gt 重试失败(`pendingUnloads` 中永久保留,`unload()` 返回 false) |
-| 关服/save-all | ❌ `flush()` 阻塞在 `dataAccess.awaitAll()` → Watchdog → halt(1) |
+| 卸载(实体数据) | ❌ 每 gt 重试失败(`pendingUnloads` 中永久保留,`unload()` 返回 false)    |
+| 关服/save-all  | ❌ `flush()` 阻塞在 `dataAccess.awaitAll()` → Watchdog → halt(1)        |
 
 玩家最容易观察到的是红石和流体：中继器到点不翻转、比较器输出不更新、活塞不按预约时间推出或收回，水和岩浆也可能停止继续流动。这里的区块可能看起来仍然加载着，真正失败的是计划刻执行前的实体加载就绪检查。
 
@@ -273,12 +276,12 @@ halt(1)
 
 几类 tick 的检查条件不同：
 
-| 机制 | 主要检查 | 是否经过 `ServerWorld.isChunkLoaded()` |
-|---|---|---|
-| 计划刻 | `tickingFutureReadyPredicate` | 是 |
-| 方块实体 tick | `WorldChunk` 内部 tickers 与运行级别 | 否 |
-| 随机刻 | `ServerWorld.tickChunk()` 与方块 ticking 资格 | 否 |
-| 实体 tick | `ChunkLevels.shouldTickEntities(level)` 与实体追踪状态 | 否 |
+| 机制          | 主要检查                                               | 是否经过 `ServerWorld.isChunkLoaded()` |
+| ------------- | ------------------------------------------------------ | -------------------------------------- |
+| 计划刻        | `tickingFutureReadyPredicate`                          | 是                                     |
+| 方块实体 tick | `WorldChunk` 内部 tickers 与运行级别                   | 否                                     |
+| 随机刻        | `ServerWorld.tickChunk()` 与方块 ticking 资格          | 否                                     |
+| 实体 tick     | `ChunkLevels.shouldTickEntities(level)` 与实体追踪状态 | 否                                     |
 
 计划刻的特殊之处在于，`ServerWorld.isTickingFutureReady()` 在检查 chunk manager 的 ticking future 之前，先检查 `this.isChunkLoaded(chunkPos)`。这个名字容易误导：它不是问“方块区块对象是否存在”，而是问实体管理器是否认为该 chunk 的实体数据已经 `LOADED`。一旦实体加载状态没有从 `PENDING` 走到 `LOADED`，计划刻会被永久挡在门外。
 
@@ -346,11 +349,13 @@ public boolean shouldDelayShutdown() {
 **line 492 是死锁的根源**：`!this.currentChunkHolders.isEmpty()`。一个 `ChunkHolder` 要从 `currentChunkHolders` 移除，必须先被成功卸载。但实体数据的卸载与区块数据的卸载走**两条独立的路径**。
 
 **区块数据的卸载**（由 TACS 的 `unloadChunks()` 处理）不受 PENDING 状态影响：
+
 - `tryUnloadChunk()` → `save(chunk)` 保存区块 NBT → `chunksToUnload.remove(pos, holder)`
 - `ServerWorld.unloadEntities(chunk)` **不调用 `ServerEntityManager.unload()`**——它只执行 `chunk.clear()` 和 `chunk.removeChunkTickSchedulers()`
 - 区块数据路径可以正常完成
 
 **实体数据的卸载**（由 `ServerEntityManager` 独立处理）受 PENDING 状态阻塞：
+
 - `ChunkHolder.tick()` 降温 → `updateTrackingStatus(pos, HIDDEN)` → 加入 `pendingUnloads`
 - 每 gt `unloadChunks()` 尝试 `unload(pos)` → 内部调用 `trySave()` → PENDING 返回 false
 - **chunk 留在 `pendingUnloads` 中，下个 tick 重试**
@@ -380,6 +385,7 @@ private void shutdown() {
 > **`PENDING` 状态卡住 + 关服 = 数据丢失高风险**
 >
 > 当 Watchdog 触发 `halt(1)` 时：
+>
 > - 所有 `PENDING` 区块的实体数据**未保存**（`trySave` 返回 false）
 > - 所有 `chunksToUnload` 中的区块可能**未写盘**
 > - 所有 `unloadTaskQueue` 中的异步保存任务**被中断**
@@ -391,13 +397,13 @@ private void shutdown() {
 
 服务器日志中出现以下特征时，可能是 `PENDING` 死锁：
 
-| 阶段 | 日志特征 |
-|---|---|
-| 关服开始 | "Stopping server" / "Saving worlds..." |
-| 卡住表现 | 控制台长时间无新日志输出，CPU 单核占用 100% |
-| Watchdog 警告 | "A single server tick took X seconds (should be max 0.05)" |
-| 强制退出 | "Forcing crash... Server has stopped responding" 或进程直接退出 |
-| 重启后 | 某些区块的红石、流体、计划刻仍然失效 |
+| 阶段          | 日志特征                                                        |
+| ------------- | --------------------------------------------------------------- |
+| 关服开始      | "Stopping server" / "Saving worlds..."                          |
+| 卡住表现      | 控制台长时间无新日志输出，CPU 单核占用 100%                     |
+| Watchdog 警告 | "A single server tick took X seconds (should be max 0.05)"      |
+| 强制退出      | "Forcing crash... Server has stopped responding" 或进程直接退出 |
+| 重启后        | 某些区块的红石、流体、计划刻仍然失效                            |
 
 **完整的死锁链路**：
 

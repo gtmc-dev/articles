@@ -3,14 +3,13 @@ translates: ./litematica.zh.md
 translated-from-revision: 20ad46927f7ac8db7b9c875504c9a899209214af
 banner:
   src: https://www.xhbsh.top/img/mod/litematica/img.png
-  alt: ''
+  alt: ""
 title: Litematica Tutorial
 ---
 
 ## Brief Introduction to Litematica
 
 By default, the hotkey for the Litematica main menu is M. Press it to open the main menu.
-
 
 In the configuration menu, you can change hotkeys and toggle various Litematica features.
 When holding the Litematica tool in your main hand or offhand, the Litematica menu bar will appear in the lower left corner.
@@ -44,9 +43,9 @@ In normal mode, selections are not created automatically. You need to create the
 ![](https://www.xhbsh.top/img/mod/litematica/img_4.png)
 
 2. To create a sub-selection, select "New Sub-region" in `Litematica Main Menu - Area Editor`. You can also rebind the `Add Selection` hotkey in Configuration Menu - Hotkeys for faster access.
-Use middle-click to select a sub-selection corner (or the sub-selection itself).
-The final result is shown in the image ![](https://www.xhbsh.top/img/mod/litematica/img_5.png)
-The steps to save the schematic are the same as in simple mode.
+   Use middle-click to select a sub-selection corner (or the sub-selection itself).
+   The final result is shown in the image ![](https://www.xhbsh.top/img/mod/litematica/img_5.png)
+   The steps to save the schematic are the same as in simple mode.
 
 ### Mode 2: Schematic Placement & Mode 5: Schematic Paste
 

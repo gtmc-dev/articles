@@ -18,7 +18,7 @@ The following rules apply to submission reviews and quality control:
 2. Academic fraud and copyright infringement are strictly prohibited. Fabricating unverified game mechanics, plagiarism, or unauthorized copying of others' content is strictly forbidden.
 3. We strictly enforce a recusal policy. Reviewers are forbidden from approving content they have submitted or primarily contributed to. Such content must be cross-reviewed by other members in the reviewer pool to ensure fairness.
 4. Maintain an objective and professional tone. Writing should be restrained, prioritizing neutral phrasing such as "results indicate" or "experiments show."
-5. Avoid using subjective vocabulary such as "I," "we," "feels like," or "probably." Internet memes, cutesy/colloquial particles, and overly emotional expressions are strictly prohibited. *(Exceptions apply for experience-based or personal-driven content.)*
+5. Avoid using subjective vocabulary such as "I," "we," "feels like," or "probably." Internet memes, cutesy/colloquial particles, and overly emotional expressions are strictly prohibited. _(Exceptions apply for experience-based or personal-driven content.)_
 6. All abbreviations must be spelled out and explained upon their first appearance. Terminology must remain consistent throughout the entire document without arbitrary switching.
 
 ## Enforcement and Appeals

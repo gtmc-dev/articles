@@ -33,4 +33,4 @@ Each rotation cycle lasts for one month, though this duration can be flexibly ad
 ## Dispute Resolution
 
 - [ TBD ]
-    *(When an author disagrees with an editor's rejection or a penalty for factual errors, permanent seat members will intervene to make the final ruling.)*
+  _(When an author disagrees with an editor's rejection or a penalty for factual errors, permanent seat members will intervene to make the final ruling.)_

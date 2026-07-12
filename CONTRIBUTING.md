@@ -52,7 +52,7 @@ Source field breakdown:
 - `title`: The primary source-language title of the article.
 - `description`: Optional short summary used by previews and metadata.
 - `index`: An integer representing the order of the article in its directory. `-1` means unordered, please do not submit articles with `index: -1`.
-- `is-advanced`: Set to `true` to mark the *entire* article as advanced content.
+- `is-advanced`: Set to `true` to mark the _entire_ article as advanced content.
 - `banner`: A nested object containing `src` (relative image path) and `alt` (accessible description of the image).
 
 Translations (`*.en.md`) link back to their source file and source revision:
@@ -202,13 +202,13 @@ This renders as an interactive annotation showing the person's profile image, na
 
 **Popup fields** (from `data/people.json`):
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | Yes | Display name |
-| `profile` | No | Avatar / profile image URL |
-| `description` | No | Short bio |
-| `email` | No | Contact email |
-| `social` | No | Object with links |
+| Field         | Required | Description                |
+| ------------- | -------- | -------------------------- |
+| `name`        | Yes      | Display name               |
+| `profile`     | No       | Avatar / profile image URL |
+| `description` | No       | Short bio                  |
+| `email`       | No       | Contact email              |
+| `social`      | No       | Object with links          |
 
 **Supported social keys:** `github`, `bilibili`, `twitter`, `website`, `custom` (array of `{ label, url }`).
 

@@ -4,14 +4,13 @@ index: 2
 is-advanced: false
 banner:
   src: https://www.xhbsh.top/img/mod/litematica/img.png
-  alt: ''
+  alt: ""
 title: 投影模组教程
 ---
 
 ## 投影模组简要介绍
 
 默认情况下,投影主菜单的快捷键位是M,打开后即可进入投影的主菜单
-
 
 在配置菜单中可以更改快捷键及开关投影的各种功能
 在主手或副手中持有投影工具时,左下角会显示投影菜单栏

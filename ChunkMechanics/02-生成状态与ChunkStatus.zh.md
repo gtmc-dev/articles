@@ -14,20 +14,20 @@ is-advanced: false
 
 `ChunkStatus` 对应区块生成中的一个阶段。在 1.20.1 中，共有 **12 个阶段**，按顺序排列：
 
-| 序号 | 状态 | 主要任务 |
-|------|------|----------|
-| 0 | `EMPTY` | 起点，不包含任何数据 |
-| 1 | `STRUCTURE_STARTS` | 确定可能在区块中起始的结构（如村庄、要塞） |
-| 2 | `STRUCTURE_REFERENCES` | 添加结构参照，用于世界生成中结构间的协调 |
-| 3 | `BIOMES` | 确定生物群系（基于噪声采样） |
-| 4 | `NOISE` | 生成地形的大致轮廓与基岩层 |
-| 5 | `SURFACE` | 替换地表附近的方块（如替换石头为泥土、草方块） |
-| 6 | `CARVERS` | 生成洞穴和峡谷 |
-| 7 | `FEATURES` | 生成地物（树木、矿石、花等） |
-| 8 | `INITIALIZE_LIGHT` | 初始光照计算（1.20 新增） |
-| 9 | `LIGHT` | 完整光照计算 |
-| 10 | `SPAWN` | 生成初始生物（如野生动物） |
-| 11 | `FULL` | 将 `ProtoChunk` 转换为 `WorldChunk` |
+| 序号 | 状态                   | 主要任务                                       |
+| ---- | ---------------------- | ---------------------------------------------- |
+| 0    | `EMPTY`                | 起点，不包含任何数据                           |
+| 1    | `STRUCTURE_STARTS`     | 确定可能在区块中起始的结构（如村庄、要塞）     |
+| 2    | `STRUCTURE_REFERENCES` | 添加结构参照，用于世界生成中结构间的协调       |
+| 3    | `BIOMES`               | 确定生物群系（基于噪声采样）                   |
+| 4    | `NOISE`                | 生成地形的大致轮廓与基岩层                     |
+| 5    | `SURFACE`              | 替换地表附近的方块（如替换石头为泥土、草方块） |
+| 6    | `CARVERS`              | 生成洞穴和峡谷                                 |
+| 7    | `FEATURES`             | 生成地物（树木、矿石、花等）                   |
+| 8    | `INITIALIZE_LIGHT`     | 初始光照计算（1.20 新增）                      |
+| 9    | `LIGHT`                | 完整光照计算                                   |
+| 10   | `SPAWN`                | 生成初始生物（如野生动物）                     |
+| 11   | `FULL`                 | 将 `ProtoChunk` 转换为 `WorldChunk`            |
 
 每个阶段都有一个对应的 **`GenerationTask`**（从无到有时）或 **`LoadTask`**（从磁盘加载时），定义了从上一个状态推进到当前状态需要执行的运算。`ChunkStatus.ChunkType` 枚举区分两种区块类型：
 
@@ -36,7 +36,7 @@ is-advanced: false
 
 > [!TIP]
 > 从生成到完成的顺口溜（1.16.4 版本，与 1.20.1 略有差异）：
-> 
+>
 > 一空二始三参考，群系噪声再地表。
 > 气流雕刻又结构，光生高度便终了。
 
@@ -50,18 +50,18 @@ is-advanced: false
 
 各个阶段的 `taskMargin` 大致如下：
 
-| 阶段 | taskMargin | 说明 |
-|------|-----------|------|
-| `STRUCTURE_STARTS` | 0 | 结构的起始位置仅依赖本区块 |
-| `STRUCTURE_REFERENCES` | 8 | 需要周围结构的参照信息 |
-| `BIOMES` | 8 | 生物群系插值需要周围噪声数据 |
-| `NOISE` | 8 | 地形生成需要周围生物群系信息 |
-| `SURFACE` | 8 | 地表构建需要周围噪声信息 |
-| `CARVERS` | 8 | 洞穴生成需要连通到周围区块 |
-| `FEATURES` | 8 | 地物（如大树）可能跨越区块边界 |
-| `INITIALIZE_LIGHT` | 0 | 仅初始化本区块光照 |
-| `LIGHT` | 1 | 光照计算需要与邻块协调 |
-| `FULL` | 0 | 转换不需要外部信息 |
+| 阶段                   | taskMargin | 说明                           |
+| ---------------------- | ---------- | ------------------------------ |
+| `STRUCTURE_STARTS`     | 0          | 结构的起始位置仅依赖本区块     |
+| `STRUCTURE_REFERENCES` | 8          | 需要周围结构的参照信息         |
+| `BIOMES`               | 8          | 生物群系插值需要周围噪声数据   |
+| `NOISE`                | 8          | 地形生成需要周围生物群系信息   |
+| `SURFACE`              | 8          | 地表构建需要周围噪声信息       |
+| `CARVERS`              | 8          | 洞穴生成需要连通到周围区块     |
+| `FEATURES`             | 8          | 地物（如大树）可能跨越区块边界 |
+| `INITIALIZE_LIGHT`     | 0          | 仅初始化本区块光照             |
+| `LIGHT`                | 1          | 光照计算需要与邻块协调         |
+| `FULL`                 | 0          | 转换不需要外部信息             |
 
 > [!IMPORTANT]
 > `taskMargin` 的存在意味着：**即使加载票只要求加载中心区的区块，周边一定范围内的区块也会被触发到对应的 ChunkStatus**。这就是为什么 F3+G 显示的地形总是比强加载范围大一圈——那些外圈区块虽然不参与 tick，但它们的生成已经部分完成。
@@ -79,12 +79,12 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 当某个区块因为加载票的约束无法达到 `FULL` 时，它的 `ChunkStatus` 会停留在与"到最近可访问区块的距离"相匹配的阶段：
 
 | 到最近可访问区块的距离 | 停留的 ChunkStatus |
-|---|---|
-| 0（自身可访问） | `FULL` |
-| 1 | `FEATURES` |
-| 2 | `CARVERS` |
-| 3~10 | `STRUCTURE_STARTS` |
-| 11 | `EMPTY` |
+| ---------------------- | ------------------ |
+| 0（自身可访问）        | `FULL`             |
+| 1                      | `FEATURES`         |
+| 2                      | `CARVERS`          |
+| 3~10                   | `STRUCTURE_STARTS` |
+| 11                     | `EMPTY`            |
 
 这意味着，1.20.1 中距离强加载区块正好 1 区块远的区块，只会生成到 `FEATURES`——洞穴有了、地物也有了，但光照是不完整的，也不能转换为 `WorldChunk`。只有当它收到更强的加载票，级别足够低时，生成才会继续向后推进。
 
@@ -116,10 +116,10 @@ $$\text{距离} = \max(|x_1 - x_2|, |z_1 - z_2|)$$
 
 `taskMargin=1` 的含义是：周围 1 区块范围内的邻块也必须至少完成 `LIGHT`，否则边界光照会不正确（因为光照传播可能跨越边界）。
 
-| 阶段 | taskMargin | 主要动作 | 是否传播光照 | 完成后状态 |
-|---|---|---|---|---|
-| `INITIALIZE_LIGHT` | 0 | `setColumnEnabled()`, `setSectionStatus()` | ❌ 否 | 光照系统知道哪些列需要计算 |
-| `LIGHT` | 1 | `propagateLight()`, `doLightUpdates()` | ✅ 是 | 区块光照值正确，可以发送给客户端 |
+| 阶段               | taskMargin | 主要动作                                   | 是否传播光照 | 完成后状态                       |
+| ------------------ | ---------- | ------------------------------------------ | ------------ | -------------------------------- |
+| `INITIALIZE_LIGHT` | 0          | `setColumnEnabled()`, `setSectionStatus()` | ❌ 否        | 光照系统知道哪些列需要计算       |
+| `LIGHT`            | 1          | `propagateLight()`, `doLightUpdates()`     | ✅ 是        | 区块光照值正确，可以发送给客户端 |
 
 #### 异步执行与 CompletableFuture
 
@@ -322,6 +322,7 @@ interface GenerationTask {
 调度逻辑在 `runGenerationTask()` 中：它从 `chunks` 列表（`getRegion` 收集的周边区块）取中间的区块作为目标，调用 `generationTask.doWork()`。任务完成后，将 `chunk.setStatus(this)` 标记当前阶段完成，然后编译器将结果传递给 `futuresByStatus[this.index]`，触发等待此阶段的 Future。
 
 这里有两点设计细节值得注意：
+
 1. **任务在独立生成线程上执行**（`worldGenExecutor`），不在主线程。这是 `CompletableFuture` 的必要性——主线程不能阻塞等待生成完成。
 2. **getRegion 的 margin 参数**：对于 `makeChunkTickable`，`margin=1` 意味着要求周围 9 个区块（3×3）都达到 `FULL`。这不是 taskMargin——taskMargin 控制的是**同一个阶段**的传播，而 margin 控制的是**不同阶段之间的依赖**。
 

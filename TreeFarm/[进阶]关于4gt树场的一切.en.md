@@ -7,7 +7,6 @@ banner:
 title: Everything About 4gt Tree Farms
 ---
 
-
 # [!ADVANCED] Everything About 4gt Tree Farms
 
 _This chapter requires maximum integration of previous knowledge. For parts mentioned before, we will indicate where they were first introduced. ~~hope you enjoy overbraining~~_
@@ -23,6 +22,7 @@ Before we begin, we must mention: although detection-based 4gt tree farms do exi
 No matter what, we still need to start with the simplest: 4gt birch.
 
 Since the 4gt main trunk and base are relatively independent ~~and the base can almost follow a formula~~, we will first discuss the trunk—the core architecture design.
+
 ### Core Architecture and Timing Design
 
 Here we discuss two typical and relatively simple architectures:
@@ -50,6 +50,7 @@ Timing: (all at `0gt BE`) Piston 1 extends at 0t to push out the upper log; then
 This way we also complete the task of processing logs within "one piston action".
 
 > I did not introduce retraction-based architecture design here: its complexity is completely unnecessary for birch. Later in the 4gt multi-species section, we will solve many, many, many problems related to it.
+
 ### 4gt Base and Sapling Circulation System
 
 As mentioned in [4.2.1](./为什么你的树场慢——高速树场入门.md), generally we use bottom suction or side suction to handle the tree roots. For 4gt, **three-shot + side suction** is a more convenient choice.
@@ -69,6 +70,7 @@ By using droppers to throw bone meal upward like this, pulling it horizontally t
 For sapling circulation, since 4gt brings a large number of items that need to be processed, we generally use **3-4 droppers** to throw saplings to the player. Since the common wiring method for 4gt is dustless (_especially observer 0t, which we will discuss later_), and there is not much space inside for sapling splashing, **we often need to collect saplings that fly outside the tree farm core**. The conventional approach is to build a wall around the core, then **fill it with hoppers**. Sometimes we also need to collect saplings stuck above the core. Generally, we will **flush them down with water** or **collect them with hopper minecarts**.
 
 After these, you only need to do the wiring, and you can get a 4gt birch tree farm. However, obviously, if using redstone dust, this tree farm will become very laggy. Therefore, we need to understand the dustless wiring method for 4gt tree farms.
+
 ## Dustless 4gt Wiring—Dustless 0t Generators
 
 For the overall approach to dustless wiring, it can be roughly said:
@@ -82,6 +84,7 @@ After understanding these two things, you will understand that **tree farms desi
 > For wiring based on redstone dust, the previously mentioned "stringing them one by one in depth order" method is still the simplest, most straightforward, and useful. This is different from the dustless wiring situation.
 
 However, since 4gt multi-species is driven by a clock, **connecting the various parts together** is actually very simple. What we really need to understand is **vertically stackable dustless 0t generators**. With them, we can truly make our dustless 4gt tree farm run according to the timing we want.
+
 ### Observer-Related 0t Generators
 
 This is an observer-based, 8gt cycle "single-edge" 0t generator (_i.e., it only produces 0t when pushing down (generally called rising edge here[^1]). For the principle, please refer to the timing theory section of GTMC_). We directly connect it to an 8gt clock here, and all subsequent analysis is conducted under 8gt clock drive.
@@ -118,6 +121,7 @@ Redstone dust redirection is **the most convenient 0t method for controlling the
 > In fact, not everywhere you must control depth. Controlling the activation order of pistons in BE through different activation orders of observers in TT is also possible.
 
 > The biggest problem with redstone dust redirection 0t generators is that you need to trap minecarts, otherwise a large number of saplings will accumulate in the middle, so please use it carefully (but actually it is still a bit more convenient than the observer 0t that pushes and pulls powered blocks).
+
 ### Wall Power-Based 0t Generators
 
 As shown
@@ -131,6 +135,7 @@ After activating the observer through wall power, use a piston to remove the pow
 At this point, you only need to do the wiring assembly yourself, and you can complete this dustless 4gt birch. [Here we recommend Scorpion's design as a reference](https://www.bilibili.com/video/BV1iN4y1X7o7)
 
 > Actually, if you look carefully at Scorpion's wiring, you will find: we do not necessarily have to use 0t. The 2gt signal given by the observer is also usable. This is also a quite important technique for reducing lag in 4gt tree farms. Folen's 4gt multi-species still suffers from lag compared to things made with Kay and Land's laggier architecture because it uses 0t everywhere.
+
 ## 4gt Multi-Species
 
 Since the content of 4gt multi-species is quite extensive, we will go through it bit by bit.
@@ -166,6 +171,7 @@ Layer1:
 Layer2:
 
 ![plexi的逆天4gt全树种架构](./img/4gtUniLayout+1.png)
+
 ### [Special Case of Plexi Architecture] Special Handling for Azalea and Cherry Blossom
 
 Actually, if you use Shixiong's original architecture, you theoretically do not need to worry about this. But if you replace the sticky piston pushing logs at the bottom with double recursion, things become much more complicated.
@@ -177,6 +183,7 @@ After plexi inserts double recursion in the middle of the suction wall activatio
 > In fact, the main reason there is no way to control the rising edge is that the log diagonally above the dpe secondary is powered by the observer 1gt before extending. If we do not want it to be powered at this time, we need to make it start retracting after 4gt, which will conflict with the double recursion on the opposite side. Either give up this activation, or it will become the situation of sending away the piston mentioned above. So if we control the rising edge of the primary extension, we cannot use the same secondary falling edge signal as the suction walls on both sides that have no rising edge. Obviously there is no place here to put another different activation. At the same time, if we control the rising edge of the primary (in fact, as long as the signal provided starts later than the observer, it will be finished), after the tree grows, it will prevent leaves and NC update the secondary piston, making it extend early. Your primary cannot push, which is not an ideal situation in any case.
 
 Plexi came up with a good solution: **if it cannot push, just pull the piston away directly**, thereby removing the push at 3gt, thus avoiding throwing out the regular piston. Theoretically there should be quite a few implementation methods. You can try more yourself, ~~although Xinghe and plexi, qontrol, lintex argued for a long time and only the wiring architecture plexi had done before could work~~.
+
 ### Jungle Wood
 
 Welcome to the actual biggest boss in 4gt tree farms. Due to jungle's 1/40 sapling drop rate, 4gt tree farms actually only run half of each cycle. Jungle sapling circulation has become the biggest obstacle for 4gt multi-species ~~I'm sure you still remember Luoxi's extreme 100.5% recovery rate back then~~.
@@ -222,6 +229,7 @@ Actually, if you think carefully, you will find that the essence of needing thes
 ![蜜绿流](./img/4gt_HSStream.png)
 
 Obviously, honey-slime streams can reduce 0t and lower lag, while shortening the length of the block stream. It is our top priority now.
+
 ### Wiring—Integrated/Independent/Modular?
 
 Although we said before that 4gt is driven by a clock, so as long as the timing is correct when running, **we still need to consider the stability and performance overhead of the design**.

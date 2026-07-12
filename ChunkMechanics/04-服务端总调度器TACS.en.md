@@ -53,6 +53,7 @@ private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders = this.c
 `ThreadedAnvilChunkStorage` does have a field named `chunkHolders` — it's a **volatile snapshot copy** of `currentChunkHolders`, used for scenarios like `tick()` and `save()` that need stable traversal. Updates happen on the main thread (Minecraft Server), while the read side can safely traverse without locks, avoiding `ConcurrentModificationException`. This is a **Copy-On-Write** pattern: write side updates on main thread, read side has zero overhead.
 
 > [!NOTE] Difference from `ChunkTicketManager.chunkHolders`
+>
 > - `TACS.chunkHolders`: `Long2ObjectLinkedOpenHashMap<ChunkHolder>`, complete mapping table of **all** active `ChunkHolder` in current dimension, key is `ChunkPos.toLong()` serialized `long`.
 > - `ChunkTicketManager.chunkHolders`: `Set<ChunkHolder>`, only collects `ChunkHolder` whose **loading levels changed** in this tick round, used for subsequent notification callbacks.
 
@@ -172,7 +173,7 @@ Key decision: **ChunkHolder is created lazily** — only when a ticket requires 
 ### Why Use Volatile Snapshot Copy
 
 ```java
-private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders = 
+private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> chunkHolders =
     this.currentChunkHolders.clone();
 
 public void tick() {

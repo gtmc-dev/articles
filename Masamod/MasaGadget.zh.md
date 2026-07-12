@@ -8,7 +8,6 @@ banner:
 title: Masa Gadget
 ---
 
-
 Masa Gadget为各个masamod添加了一些额外的功能，同时本身也提供了村民信息渲染，搜寻可刷怪位置等额外功能
 
 ## 通用功能

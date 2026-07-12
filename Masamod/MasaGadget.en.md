@@ -7,7 +7,6 @@ banner:
 title: Masa Gadget
 ---
 
-
 Masa Gadget adds extra features to various masamods, and also provides standalone functionality such as villager information rendering and spawn location searching.
 
 ## General Features

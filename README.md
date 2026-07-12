@@ -23,7 +23,7 @@ Data source for GTMC chapters, proposed drafts, and translations on the website.
 
 ## About
 
-This repository holds every article in the GTMC textbook. It is a *data repo* — pure Markdown plus YAML frontmatter, organized into chapter directories. The [website](https://github.com/gtmc-dev/gtmc) consumes this repo as a Git submodule and renders it through its content pipeline.
+This repository holds every article in the GTMC textbook. It is a _data repo_ — pure Markdown plus YAML frontmatter, organized into chapter directories. The [website](https://github.com/gtmc-dev/gtmc) consumes this repo as a Git submodule and renders it through its content pipeline.
 
 > [!NOTE]
 > Looking for the website code, the article reader, or the draft editor? Those live in [`gtmc-dev/gtmc`](https://github.com/gtmc-dev/gtmc).

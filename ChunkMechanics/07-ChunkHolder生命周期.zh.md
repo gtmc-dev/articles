@@ -31,11 +31,11 @@ private volatile CompletableFuture<Either<WorldChunk, Unloaded>> entityTickingFu
     = UNLOADED_WORLD_CHUNK_FUTURE;
 ```
 
-| Future | 含义 | 什么时候被 complete | 对应 ChunkLevelType |
-|---|---|---|---|
-| `accessibleFuture` | 区块数据可供读写 | level ≤ 33 且区块已加载 | `FULL` |
-| `tickingFuture` | 方块运算可以执行 | level ≤ 32 且周围区块达 FULL | `BLOCK_TICKING` |
-| `entityTickingFuture` | 实体运算可以执行 | level ≤ 31 且区块已进入 ticking | `ENTITY_TICKING` |
+| Future                | 含义             | 什么时候被 complete             | 对应 ChunkLevelType |
+| --------------------- | ---------------- | ------------------------------- | ------------------- |
+| `accessibleFuture`    | 区块数据可供读写 | level ≤ 33 且区块已加载         | `FULL`              |
+| `tickingFuture`       | 方块运算可以执行 | level ≤ 32 且周围区块达 FULL    | `BLOCK_TICKING`     |
+| `entityTickingFuture` | 实体运算可以执行 | level ≤ 31 且区块已进入 ticking | `ENTITY_TICKING`    |
 
 初始值 `UNLOADED_WORLD_CHUNK_FUTURE` 是一个**已经完成**的 Future，值为 `Either.right(Unloaded.INSTANCE)`——表示"不可用"。任何等待此 Future 的代码都会立即得到一个"不可用"的结果。
 
@@ -334,6 +334,7 @@ public CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> getChunkAt(
 **第一步：检查 futuresByStatus 缓存**
 
 如果 `futuresByStatus.get(i)` 返回了一个已存在的 Future：
+
 - 调用 `getNow(field_36388)` 立即获取当前值（不会阻塞）
 - 如果返回的是 `field_36388`（哨兵对象，代表"Future 正在被处理中"）→ 直接返回这个 Future，多个调用者共享同一个 Future
 - 如果返回的不是 `field_36388` 且 `either.right().isEmpty()`（说明 Future 已经完成且返回了 Left 值，即区块已生成）→ 直接返回这个 Future
@@ -460,7 +461,7 @@ private void combineSavingFuture(CompletableFuture<? extends Either<? extends Ch
         this.actionStack.push(new ChunkHolder.MultithreadAction(Thread.currentThread(), then, thenDesc));
     }
 
-    this.savingFuture = this.savingFuture.thenCombine(then, (chunk, either) -> 
+    this.savingFuture = this.savingFuture.thenCombine(then, (chunk, either) ->
         either.map(chunkx -> chunkx, unloaded -> (Chunk)chunk)
     );
 }
