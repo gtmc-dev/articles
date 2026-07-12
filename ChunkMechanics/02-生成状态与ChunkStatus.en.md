@@ -1,9 +1,8 @@
 ---
-slug: chunk-status
+translates: ./02-生成状态与ChunkStatus.zh.md
+translated-from-revision: fa9abfa0c6a083d3e2dbbb8565313207b2287cd7
 title: Generation State and ChunkStatus
 description: 12-stage chunk generation pipeline, outer ring dependencies, taskMargin and Chebyshev distance, lighting and save upgrade bypass.
-index: 2
-is-advanced: false
 ---
 
 We already know chunks have two forms: `ProtoChunk` and `WorldChunk`. But how does a `ProtoChunk` evolve from nothing, step by step, into a `WorldChunk`?

@@ -1,8 +1,8 @@
 ---
-slug: chunk-system-intro
+translates: ./README.zh.md
+translated-from-revision: fa9abfa0c6a083d3e2dbbb8565313207b2287cd7
 intro-title: Introduction
 chapter-title: Chunks
-index: -1
 ---
 
 ## Research Background and Significance

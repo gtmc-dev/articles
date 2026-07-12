@@ -1,8 +1,7 @@
 ---
-slug: game-event-listeners
+translates: ./14-GameEvent与区块内监听器.zh.md
+translated-from-revision: 5cd3ed8426fb74699ad86c3870e73a4d03ce43a0
 title: Game Event and In-Chunk Listeners
-index: 14
-is-advanced: false
 ---
 
 Previous chapters mainly discussed how chunks are loaded, run, saved, and unloaded. This chapter supplements a smaller but easily confused system: **game events** (`GameEvent`).

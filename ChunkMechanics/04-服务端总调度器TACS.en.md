@@ -1,9 +1,8 @@
 ---
-slug: chunk-tacs
+translates: ./04-服务端总调度器TACS.zh.md
+translated-from-revision: 127319632f93b2099a9a13ceba705dd67e5f1952
 title: Server Master Dispatcher TACS
 description: ThreadedAnvilChunkStorage responsibilities overview, core table structures, three types of executors, and ChunkTaskPrioritySystem priority scheduling.
-index: 4
-is-advanced: false
 ---
 
 If the chunk management system is a factory, `ThreadedAnvilChunkStorage` (hereafter **TACS**) is the workshop director — it doesn't directly produce products, but coordinates every production line's operation.

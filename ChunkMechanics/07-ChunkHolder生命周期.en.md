@@ -1,9 +1,8 @@
 ---
-slug: chunk-holder-lifecycle
+translates: ./07-ChunkHolder生命周期.zh.md
+translated-from-revision: 127319632f93b2099a9a13ceba705dd67e5f1952
 title: ChunkHolder Lifecycle
 description: How three core Futures control the three operational views of a chunk, how tick() warms up and cools down, and the complete cycle from ProtoChunk to WorldChunk to unloading.
-index: 7
-is-advanced: false
 ---
 
 If the ticket system is the "brain" (deciding what to do) and TACS is the "arm" (coordinating departments), then `ChunkHolder` is the "thermometer" — it measures and responds to a chunk's current "heat," then precisely controls which operational state the chunk is in.

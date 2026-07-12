@@ -1,6 +1,6 @@
 ---
-slug: block-mechanics
-index: -1
+translates: ./README.zh.md
+translated-from-revision: 7c7b4ca93524fd57af3bfe42221c1af2812e0166
 chapter-title: Blocks
 intro-title: The Nature of Blocks
 ---

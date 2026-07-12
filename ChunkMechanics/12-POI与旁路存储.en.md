@@ -1,9 +1,8 @@
 ---
-slug: point-of-interest
+translates: ./12-POI与旁路存储.zh.md
+translated-from-revision: 4236616fd436629ffa774cb260495c322cce50f7
 title: POI and Bypass Storage
 description: Why Point of Interest is stored independently from regular chunks, how it organizes data by section, and its role in villagers, raids, wandering traders, and chunk lifecycle.
-index: 12
-is-advanced: false
 ---
 
 Previous chapters covered chunk loading, cooling, saving, and unloading, but there's one type of data that runs alongside chunks yet doesn't live in regular chunk NBT: `PointOfInterestStorage`. It stores "points of interest" frequently queried by AI and world logic, known as POI.
