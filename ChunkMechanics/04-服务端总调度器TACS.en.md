@@ -140,7 +140,7 @@ Design principle: **Chunks closer to completion, closer to target level, get hig
 > Why use `completedLevel` rather than `level` to determine priority?
 > `level` is the "target" (what level we want this chunk to reach), `completedLevel` is the "status quo" (what level it's actually reached). Sorting by `completedLevel` means: **tasks already largely complete, closest to target, get highest priority**.
 
-## [!ADVANCED] Code Walkthrough
+## :advanced Code Walkthrough
 
 ### TACS Lifecycle and Chunk Holder Creation
 

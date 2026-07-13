@@ -20,7 +20,7 @@ The documentation assumes readers have a **fairly basic** understanding of Minec
 
 The code in this documentation is decompiled using `1.20.1-yarn`. Any special cases will be noted with a superscript[^3].
 
-<!-- Articles include exercises for readers to practice. Answers are hidden with <hidden>Answer (hover to reveal, web only)</hidden> blocks. -->
+<!-- Articles include exercises for readers to practice. Answers are hidden with :hidden[Answer (hover to reveal, web only)] blocks. -->
 
 Feel free to join the QQ group for discussion: [1031431170](https://qm.qq.com/q/fiXR8MyZA4)
 

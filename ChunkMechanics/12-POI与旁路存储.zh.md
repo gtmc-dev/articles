@@ -84,7 +84,7 @@ POI 不是普通区块的一部分，但它跟区块生命周期贴得很紧。�
 - 方块变化通过 `ServerWorld.onBlockChanged()` 转成 `add()` / `remove()`，再由更新回调标记脏 section。
 - 村民、袭击、流浪商人都依赖 POI 查询，但它们各自的 AI 细节不属于 POI 存储本身。
 
-## [!ADVANCED] 源码走读
+## :advanced 源码走读
 
 ### PointOfInterestStorage 构造器
 

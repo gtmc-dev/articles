@@ -7,7 +7,7 @@ banner:
 title: Everything About 4gt Tree Farms
 ---
 
-# [!ADVANCED] Everything About 4gt Tree Farms
+# :advanced Everything About 4gt Tree Farms
 
 _This chapter requires maximum integration of previous knowledge. For parts mentioned before, we will indicate where they were first introduced. ~~hope you enjoy overbraining~~_
 

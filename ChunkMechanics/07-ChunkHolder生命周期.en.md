@@ -184,7 +184,7 @@ Unlike `makeChunkTickable`, this waits for a **5×5 region** — entities need m
 8. **TACS.save()** → writes to region file
 9. **ChunkHolder removed from TACS** → memory freed
 
-## [!ADVANCED] Code Walkthrough
+## :advanced Code Walkthrough
 
 ### ChunkHolder.tick() Complete Logic
 

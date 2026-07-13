@@ -75,7 +75,7 @@ During runtime, block changes cause POI additions/deletions; AI queries read POI
 
 POI can be understood as "an AI index table alongside chunks": it derives from chunk block states, saves by chunk coordinates, but queries, occupation, and disk writes all have their own lifecycle. Regular chunks answer "what block is here"; POI quickly answers "what AI-relevant points are nearby."
 
-## [!ADVANCED] Source Code Walkthrough
+## :advanced Source Code Walkthrough
 
 ### PointOfInterestStorage Constructor
 

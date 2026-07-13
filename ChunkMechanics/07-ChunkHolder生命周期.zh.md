@@ -187,7 +187,7 @@ private final AtomicReferenceArray<CompletableFuture<Either<Chunk, Unloaded>>> f
 - 完整生命周期：无人问津 → 进入视野 → 升温 → 稳定 → 降温 → 卸载 → 重生。
 - 区块的"存在"不是二元的——它是一个由 level 和 ChunkStatus 共同决定的精细光谱。
 
-## [!ADVANCED] 代码走读
+## :advanced 代码走读
 
 ### 三个 Future 的状态机设计
 

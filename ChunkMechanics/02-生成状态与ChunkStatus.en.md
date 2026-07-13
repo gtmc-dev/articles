@@ -138,7 +138,7 @@ Why force lighting recalculation? Because surrounding chunks may have changed af
 - Lighting is split into two stages (`INITIALIZE_LIGHT` + `LIGHT`) to reduce blocking;
 - Old saves bypass partial generation stages but force lighting recalculation.
 
-## [!ADVANCED] Code Walkthrough
+## :advanced Code Walkthrough
 
 ### Why Generation Tasks Use Executor
 

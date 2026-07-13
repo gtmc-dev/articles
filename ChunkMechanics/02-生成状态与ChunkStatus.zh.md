@@ -244,7 +244,7 @@ LIGHT = register("light", ..., true, ...);                         // shouldAlwa
 - 光照系统分为 `INITIALIZE_LIGHT`（标记需要光照的列）和 `LIGHT`（执行实际传播）两个阶段，异步执行在独立线程中，完成后强制重算以保证正确性；存档升级系统在 `ChunkSerializer` 中通过 `DataFixer` 介入。
 - 世界生成的详细内容超出了本章范围，将在后续"世界生成"专章详细展开。
 
-## [!ADVANCED] 代码走读
+## :advanced 代码走读
 
 ### ChunkStatus 的注册模式：为什么是链表而不是枚举
 
