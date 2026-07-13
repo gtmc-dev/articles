@@ -214,7 +214,7 @@ This renders as an interactive annotation showing the person's profile image, na
 
 ## Git Standards
 
-We do not strictly require contributors to possess Git knowledge. If you use our [online editor](https://beta.techmc.wiki), Git and Pull Requests are handled entirely as the backend, meaning you won't need to manually deal with commits.
+We do not strictly require contributors to possess Git knowledge. If you use our [online editor](https://techmc.wiki), Git and Pull Requests are handled entirely as the backend, meaning you won't need to manually deal with commits.
 
 However, if you are editing files locally and pushing to GitHub, you must follow these standards to ensure your PR merges smoothly:
 

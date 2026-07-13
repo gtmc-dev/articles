@@ -6,7 +6,7 @@ To ensure the efficient operation and high content quality of the GraduateTextsI
 
 In our community collaboration and content contributions, we expect and require the following behaviors:
 
-1. Expressions in discussions must be clear and unambiguous. For unconfirmed technical phenomena, please initiate discussions and verifications in the [Features](https://beta.techmc.wiki/features) section; do not include them in formal articles until they are verified.
+1. Expressions in discussions must be clear and unambiguous. For unconfirmed technical phenomena, please initiate discussions and verifications in the [Features](https://techmc.wiki/features) section; do not include them in formal articles until they are verified.
 2. Community discussions should remain focused on technical topics. We permit and actively encourage rational academic and technical debates.
 3. Always respect the original work of others. Prominently and clearly cite the original authors when referencing their content.
 

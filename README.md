@@ -3,13 +3,13 @@
 
 # GTMC Articles
 
-**Article storage for [Graduate Texts in Minecraft](https://beta.techmc.wiki).**
+**Article storage for [Graduate Texts in Minecraft](https://techmc.wiki).**
 
 Data source for GTMC chapters, proposed drafts, and translations on the website.
 
-[![Website](https://img.shields.io/badge/site-beta.techmc.wiki-60708F?style=flat-square&labelColor=4A5A78)](https://beta.techmc.wiki) [![Articles](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-lightgrey?style=flat-square)](LICENSE) [![Markdown](https://img.shields.io/badge/Markdown-GFM-000?style=flat-square&logo=markdown&logoColor=white)](https://github.github.com/gfm/) [![Languages](https://img.shields.io/badge/lang-zh%20%7C%20en-60708F?style=flat-square&labelColor=4A5A78)](#translation)
+[![Website](https://img.shields.io/badge/site-techmc.wiki-60708F?style=flat-square&labelColor=4A5A78)](https://techmc.wiki) [![Articles](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-lightgrey?style=flat-square)](LICENSE) [![Markdown](https://img.shields.io/badge/Markdown-GFM-000?style=flat-square&logo=markdown&logoColor=white)](https://github.github.com/gfm/) [![Languages](https://img.shields.io/badge/lang-zh%20%7C%20en-60708F?style=flat-square&labelColor=4A5A78)](#translation)
 
-[Read on the Site](https://beta.techmc.wiki) · [Contributing](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Reviewers](REVIEWERS.md)
+[Read on the Site](https://techmc.wiki) · [Contributing](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Reviewers](REVIEWERS.md)
 
 <!-- README-I18N:START -->
 
@@ -32,7 +32,7 @@ This repository holds every article in the GTMC textbook. It is a _data repo_ �
 
 You have two paths, both ending in a Pull Request against this repo:
 
-- `>> ON THE SITE` — sign in at [beta.techmc.wiki](https://beta.techmc.wiki), draft in the in-browser editor, and submit. The site opens and syncs a PR here for you.
+- `>> ON THE SITE` — sign in at [techmc.wiki](https://techmc.wiki), draft in the in-browser editor, and submit. The site opens and syncs a PR here for you.
 - `>> LOCAL + GIT` — fork, write Markdown with the right frontmatter, push, and open a PR by hand.
 
 Reviewers approve, request changes, or close the PR. Approval merges the article and it goes live on the next site deploy.
@@ -44,7 +44,7 @@ Reviewers approve, request changes, or close the PR. Approval merges the article
 
 Each top-level directory is a **chapter**. Inside a chapter, articles are plain Markdown files; subdirectories are sub-chapters (max **3 levels deep**). Every directory has a `README.zh.md` (source) and `README.en.md` (translation) describing the chapter itself.
 
-For the curriculum vision and what's coming after the beta, see [`ROADMAP.md`](ROADMAP.md).
+For the curriculum vision and the v2 release roadmap, see [`ROADMAP.md`](ROADMAP.md).
 
 ## Source and translation model
 

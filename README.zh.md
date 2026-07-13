@@ -3,13 +3,13 @@
 
 # GTMC Articles
 
-**[Graduate Texts in Minecraft](https://beta.techmc.wiki) 的文章存储仓库。**
+**[Graduate Texts in Minecraft](https://techmc.wiki) 的文章存储仓库。**
 
 GTMC 网站章节、待审草稿与翻译的数据源。
 
-[![Website](https://img.shields.io/badge/site-beta.techmc.wiki-60708F?style=flat-square&labelColor=4A5A78)](https://beta.techmc.wiki) [![Articles](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-lightgrey?style=flat-square)](LICENSE) [![Markdown](https://img.shields.io/badge/Markdown-GFM-000?style=flat-square&logo=markdown&logoColor=white)](https://github.github.com/gfm/) [![Languages](https://img.shields.io/badge/lang-zh%20%7C%20en-60708F?style=flat-square&labelColor=4A5A78)](#翻译)
+[![Website](https://img.shields.io/badge/site-techmc.wiki-60708F?style=flat-square&labelColor=4A5A78)](https://techmc.wiki) [![Articles](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-lightgrey?style=flat-square)](LICENSE) [![Markdown](https://img.shields.io/badge/Markdown-GFM-000?style=flat-square&logo=markdown&logoColor=white)](https://github.github.com/gfm/) [![Languages](https://img.shields.io/badge/lang-zh%20%7C%20en-60708F?style=flat-square&labelColor=4A5A78)](#翻译)
 
-[在网站上阅读](https://beta.techmc.wiki) · [贡献指南](CONTRIBUTING_CN.md) · [路线图](ROADMAP.md) · [评审者](REVIEWERS_CN.zh.md)
+[在网站上阅读](https://techmc.wiki) · [贡献指南](CONTRIBUTING_CN.md) · [路线图](ROADMAP.md) · [评审者](REVIEWERS_CN.zh.md)
 
 <!-- README-I18N:START -->
 
@@ -32,7 +32,7 @@ GTMC 网站章节、待审草稿与翻译的数据源。
 
 有两条路径，最终都会向本仓库发起一个 Pull Request：
 
-- `>> ON THE SITE` —— 在 [beta.techmc.wiki](https://beta.techmc.wiki) 登录，使用站内编辑器撰写并提交。网站会自动开 PR 并保持同步。
+- `>> ON THE SITE` —— 在 [techmc.wiki](https://techmc.wiki) 登录，使用站内编辑器撰写并提交。网站会自动开 PR 并保持同步。
 - `>> LOCAL + GIT` —— Fork 仓库，本地以正确的 frontmatter 撰写 Markdown，推送后手动开 PR。
 
 评审者会批准、请求修改或关闭 PR。批准并合并后，文章会随下一次站点部署上线。
