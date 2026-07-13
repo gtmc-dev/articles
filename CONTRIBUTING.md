@@ -52,6 +52,7 @@ Source field breakdown:
 - `title`: The primary source-language title of the article.
 - `description`: Optional short summary used by previews and metadata.
 - `index`: An integer representing the order of the article in its directory. `-1` means unordered, please do not submit articles with `index: -1`.
+- `appendix`: Optional. Set to `true` to display this article after an appendix separator and use appendix numbering. The filename, title, and slug are not used for detection.
 - `is-advanced`: Set to `true` to mark the _entire_ article as advanced content.
 - `banner`: A nested object containing `src` (relative image path) and `alt` (accessible description of the image).
 
@@ -83,6 +84,7 @@ slug: tree-farm
 chapter-title: 树场
 intro-title: 前言
 index: -1
+appendix: true
 ---
 ```
 
@@ -103,6 +105,7 @@ Chapter field breakdown:
 - `intro-title`: The title for the introductory text inside the `README.md`.
 - `index`: Ordering integer for the chapter among its siblings.
 - `slug`: The unique URL identifier for the chapter directory. In nested chapters, this field can be left empty to omit the URL level.
+- `appendix`: Optional. Set to `true` on a source chapter `README.zh.md` to display an appendix separator and apply appendix treatment to every descendant. A standalone appendix sets the same field in its own source article. Multiple appendices are allowed, and detection never depends on the filename, title, or slug. Translations inherit the field from their source file.
 
 Do not add legacy fields such as `title-en`, `chapter-title-en`, `intro-title-en`, `author`, `co-authors`, `date`, or `lastmod`. Author and date metadata is derived from Git history by the website pipeline.
 
