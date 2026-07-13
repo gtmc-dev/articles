@@ -69,7 +69,7 @@ LivingEntity是实体中的一大类，包括了玩家、生物和盔甲架。�
 5. 以当前Motion作为位移趋势进行基于Entity.move()的移动
 6. 如果移动过程中发生了水平碰撞或在尝试跳跃且坐标所在方块网格处为可攀登方块，将Y轴Motion设为0.2m/gt。
 7. Y轴Motion的一些运算
-   1. 如果拥有漂浮效果将Y轴Motion改为$0.01 \cdot 漂浮等级\text{+0.8} \cdot 原Y轴\text{Motion}$
+   1. 如果拥有漂浮效果将Y轴Motion改为$0.01L + 0.8M_{Y,0}$（L为漂浮等级，M_{Y,0}为原Y轴Motion）
    2. 否则如果这是在客户端上的运算，而且实体所在区块未加载（连边界加载都不是），实体的Motion会被设为-0.1m/gt（Y轴坐标大于0时）或直接归零（Y轴坐标不大于0时）
    3. 如果实体上述两步中条件均未被满足且实体的NoGravity标签为false，受到0.08$m/gt^2$的重力加速度。
 8. 将水平轴上Motion改为原来的j倍，Y轴Motion改为原来的0.98倍。
@@ -141,7 +141,7 @@ $$
 
 ![slipernessToSpeed.PNG](./img/image30.png)
 
-> 图6.2 $Δd_{max}$与s之间关系曲线
+> 图6.2 $\Delta d_{max}$与s之间关系曲线
 
 对其关于s求导，得
 
@@ -238,7 +238,7 @@ if (this.jumping && this.method_29920()) {
 
 (4) 一些幼年生物的generic_movement_speed属性值较大，如幼年僵尸是成年僵尸的1.5倍，幼年猪灵是成年猪灵的1.2倍等。
 
-(5) 在实体在灵魂沙上面且有灵魂疾行附魔时，generic_movement_speed属性值加上$0.03 \bullet (0.65 + 0.35附魔等级)$。
+(5) 在实体在灵魂沙上面且有灵魂疾行附魔时，generic_movement_speed属性值加上$0.03 \cdot (0.65 + 0.35L)$（L为灵魂疾行附魔等级）。
 
 易知generic_movement_speed属性值的最终值与前三种修饰符的作用顺序无关。第四种修饰符总是最先被应用。
 
