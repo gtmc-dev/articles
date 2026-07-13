@@ -38,7 +38,7 @@ You have two paths, both ending in a Pull Request against this repo:
 Reviewers approve, request changes, or close the PR. Approval merges the article and it goes live on the next site deploy.
 
 > [!TIP]
-> Full submission flow, frontmatter schema, slug rules, and our custom Markdown extensions (callouts, colored text, `<hidden>`, `[@name]` mentions, `[!ADVANCED]` headings) are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md). Read it before your first PR.
+> Full submission flow, frontmatter schema, slug rules, and our custom Markdown extensions (callouts, colored text, `:hidden[...]`, `[@name]` mentions, `:advanced` headings, `::litematica{...}` schematics) are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md). Read it before your first PR.
 
 ## Repository layout
 
@@ -85,10 +85,11 @@ On top of GFM, articles support a small set of extensions tailored for technical
 
 | Feature           | Syntax                                                                 |
 | ----------------- | ---------------------------------------------------------------------- |
-| Colored text      | `[red]text[/red]`, `[bright-blue]text[/bright-blue]`                   |
-| Advanced sections | `## Heading [!ADVANCED]`                                               |
+| Colored text      | `:red[text]`, `:bright-blue[text]`                                     |
+| Advanced sections | `## Heading :advanced`                                                 |
 | Callouts          | `> [!WARNING]`, `[!TIP]`, `[!IMPORTANT]`, `[!CRASH]`, `[!CORRUPTION]`  |
-| Hidden text       | `<hidden>spoiler</hidden>`                                             |
+| Hidden text       | `:hidden[spoiler]`                                                     |
+| Schematic viewer  | `::litematica{url="https://..."}`                                      |
 | People mentions   | `[@BFladderbean]` (resolved against `data/people.json` on the website) |
 | Math              | `$inline$`, `$$display$$` (KaTeX)                                      |
 | Code highlighting | Standard fenced code blocks (Shiki on the site)                        |

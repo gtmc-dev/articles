@@ -127,11 +127,11 @@ We provide a few custom Markdown enhancements to make technical writing more exp
 
 ### Colored Text
 
-When you need to highlight an easy-to-miss warning or distinguish different colored cables, you can use our ANSI color syntax. It's very simple—just wrap your text in brackets with the color name:
+When you need to highlight an easy-to-miss warning or distinguish different colored cables, you can use our ANSI color syntax. Wrap your text in a text directive with the color name:
 
 ```markdown
-This is a [red]very important[/red] warning.
-You can also use [bright-blue]brighter colors[/bright-blue].
+This is a :red[very important] warning.
+You can also use :bright-blue[brighter colors].
 ```
 
 **Supported Colors:**
@@ -144,10 +144,10 @@ You can also use [bright-blue]brighter colors[/bright-blue].
 
 ### Advanced Content Sections
 
-Deep technical mechanics can easily overwhelm beginners. If a section contains very hardcore content (such as relatively obscure research or code analysis), just append `[!ADVANCED]` to the end of the heading:
+Deep technical mechanics can easily overwhelm beginners. If a section contains very hardcore content (such as relatively obscure research or code analysis), append `:advanced` to the heading:
 
 ```markdown
-## How the RNG Manipulation Works [!ADVANCED]
+## How the RNG Manipulation Works :advanced
 
 This section will be marked as advanced content.
 ```
@@ -175,11 +175,21 @@ Use callout blocks to draw attention to important information. The syntax follow
 
 ### Hidden Text
 
-Want to hide an easter egg or the answer to a puzzle without spoiling it immediately? Use the `<hidden>` tag. The text will be blacked out, revealing itself only when the reader hovers over it:
+Want to hide an easter egg or the answer to a puzzle without spoiling it immediately? Use the `:hidden[...]` directive. The text will be blacked out, revealing itself only when the reader hovers over it:
 
-```html
-The answer to the puzzle is <hidden>42</hidden>.
+```markdown
+The answer to the puzzle is :hidden[42].
 ```
+
+### Schematic Viewer
+
+Embed an interactive 3D schematic from a Litematica `.litematic` file:
+
+```markdown
+::litematica{url="https://example.com/my-farm.litematic"}
+```
+
+The viewer renders inline on the website. The `url` attribute must point to a publicly accessible `.litematic` file.
 
 ### People Mentions
 

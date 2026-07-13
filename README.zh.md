@@ -38,7 +38,7 @@ GTMC 网站章节、待审草稿与翻译的数据源。
 评审者会批准、请求修改或关闭 PR。批准并合并后，文章会随下一次站点部署上线。
 
 > [!TIP]
-> 完整的投稿流程、frontmatter Schema、slug 规则，以及我们的 Markdown 扩展（callout、彩色文本、`<hidden>`、`[@name]` 提及、`[!ADVANCED]` 标题）均记录在 [`CONTRIBUTING_CN.md`](CONTRIBUTING_CN.md) 中。首次投稿前请先阅读。
+> 完整的投稿流程、frontmatter Schema、slug 规则，以及我们的 Markdown 扩展（callout、彩色文本、`:hidden[...]`、`[@name]` 提及、`:advanced` 标题、`::litematica{...}` 原理图）均记录在 [`CONTRIBUTING_CN.md`](CONTRIBUTING_CN.md) 中。首次投稿前请先阅读。
 
 ## 仓库结构
 
@@ -85,10 +85,11 @@ title: Basics and Structure
 
 | 功能         | 语法                                                                  |
 | ------------ | --------------------------------------------------------------------- |
-| 彩色文本     | `[red]text[/red]`、`[bright-blue]text[/bright-blue]`                  |
-| 进阶段落标记 | `## 标题 [!ADVANCED]`                                                 |
+| 彩色文本     | `:red[text]`、`:bright-blue[text]`                                    |
+| 进阶段落标记 | `## 标题 :advanced`                                                   |
 | Callout      | `> [!WARNING]`、`[!TIP]`、`[!IMPORTANT]`、`[!CRASH]`、`[!CORRUPTION]` |
-| 隐藏文本     | `<hidden>spoiler</hidden>`                                            |
+| 隐藏文本     | `:hidden[spoiler]`                                                    |
+| 原理图查看器 | `::litematica{url="https://..."}`                                     |
 | 人物提及     | `[@BFladderbean]`（在网站上根据 `data/people.json` 解析）             |
 | 数学公式     | `$inline$`、`$$display$$`（KaTeX）                                    |
 | 代码高亮     | 标准代码栅栏（站内由 Shiki 渲染）                                     |
