@@ -5,8 +5,6 @@ chapter-title: Twisuki
 intro-title: Preface
 ---
 
----
-
 Welcome to this Slime Tech tutorial, meow~ This is Suyang Twisuki.
 
 Inject Twisuki, meow~ Inject Twisuki, thank you, meow~
