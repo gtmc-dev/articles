@@ -1,32 +1,32 @@
-# Code of Conduct
+# GTMC 社区行为准则 (Code of Conduct)
 
-To ensure the efficient operation and high content quality of the GraduateTextsInTechnicalMC (GTMC) community, and to uphold our core focus on educational and practical value, we have established this Code of Conduct. All participants must strictly adhere to these guidelines when contributing content, conducting reviews, and interacting within the community.
+为保障 GraduateTextsInTechnicalMC (GTMC) 社区的高效运转与内容质量，基于本社区教学性与实用性的核心定位，特制定本行为准则。所有参与者在进行内容贡献、评审与社区互动时，均须严格遵守以下规范。
 
-## Expectations and Standards
+## 期望与行为规范
 
-In our community collaboration and content contributions, we expect and require the following behaviors:
+我们在社区协作与内容贡献中，倡导并要求以下行为：
 
-1. Expressions in discussions must be clear and unambiguous. For unconfirmed technical phenomena, please initiate discussions and verifications in the [Features](https://techmc.wiki/features) section; do not include them in formal articles until they are verified.
-2. Community discussions should remain focused on technical topics. We permit and actively encourage rational academic and technical debates.
-3. Always respect the original work of others. Prominently and clearly cite the original authors when referencing their content.
+1. 正是讨论中的表达应当清晰明确，杜绝歧义。对于尚未确定的技术现象，请在 [Features](https://techmc.wiki/features) 板块中发起探讨与查证，确认前不要写入正式文章。
+2. 社区内的探讨应该聚焦技术相关主题。我们允许并鼓励理性的学术与技术论辩。
+3. 尊重他人的原创成果。显著、清晰地标注引用内容的原作者信息。
 
-## Review and Quality Assurance
+## 审核与质量保证
 
-The following rules apply to submission reviews and quality control:
+以下是关于投稿审核与质量控制的具体规定：
 
-1. Factual errors must be strictly avoided. Fabricating unverified game mechanics or making severe logical errors in derivations will result in harsh point deductions during contribution assessments. Minor formatting, layout, or soft guideline errors will only result in a reminder to revise.
-2. Academic fraud and copyright infringement are strictly prohibited. Fabricating unverified game mechanics, plagiarism, or unauthorized copying of others' content is strictly forbidden.
-3. We strictly enforce a recusal policy. Reviewers are forbidden from approving content they have submitted or primarily contributed to. Such content must be cross-reviewed by other members in the reviewer pool to ensure fairness.
-4. Maintain an objective and professional tone. Writing should be restrained, prioritizing neutral phrasing such as "results indicate" or "experiments show."
-5. Avoid using subjective vocabulary such as "I," "we," "feels like," or "probably." Internet memes, cutesy/colloquial particles, and overly emotional expressions are strictly prohibited. _(Exceptions apply for experience-based or personal-driven content.)_
-6. All abbreviations must be spelled out and explained upon their first appearance. Terminology must remain consistent throughout the entire document without arbitrary switching.
+1. 事实性错误需要被极力避免。编造未经证实的机制或出现严重的逻辑推导错误，将在贡献考核中面临严厉的扣分处罚。一般的排版、格式或软性规范错误则以提醒修改为主。
+2. 严厉禁止学术造假与侵权；严禁编造未经证实的游戏机制；严禁洗稿或未经授权擅自搬运他人内容。
+3. 严格遵守利益回避原则。文章编辑严禁审批自己参与提交或作为主要贡献者的内容，必须交由池内其他成员进行交叉评审，以确保公正。
+4. 保持学术中立和语言的专业性。行文需克制，优先采用“结果显示”、“实验表明”等中性、客观的表述方式。
+5. 避免主观性语言。行文中请避免使用“我/我们/感觉是/大概”等主观词汇；严禁出现网络梗、语气词（如“呀/捏/呜/了呢”）或任何过度丰富的情感表达。_经验性/个人主导的内容除外_。
+6. 规范的使用术语。所有缩写在首次出现时须注明全称并加以解释，且在全文中保持术语的统一，避免交替切换。
 
-## Enforcement and Appeals
+## 违规处理与申诉流程
 
-For behaviors that violate this Code of Conduct, the community management team will take corresponding disciplinary actions based on the severity of the offense:
+对于违反本准则的行为，编辑组将根据严重程度采取相应等级的处罚措施：
 
-1. For minor formatting or tone violations (Level 1), a simple reminder will be issued. Contributors will be asked to revise the content (or assisted in doing so) to meet the guidelines, with no point deductions applied.
-2. For spamming or unauthorized copying (Level 2), the violating content will be deleted immediately. The involved individuals will face a short-term ban, and corresponding contribution points will be deducted based on the specific circumstances.
-3. For malicious fabrication of mechanics or personal attacks (Level 3), the management team will treat this as the most severe violation. The incident will be publicly announced site-wide and the offending individuals will be permanently banned.
+1. 一级违规（排版/语气违规）：仅予以提醒。要求或着者协助修改以符合规范，且不计入扣分。
+2. 二级违规（灌水/未经授权搬运）：违规内容将被直接删除，并对涉事人员处以短期封禁，同时根据具体情况扣除相应的贡献分。
+3. 三级违规（恶意造谣机制/人身攻击）：属于最严重违规，管理组将全站公示该行为，并对涉事人员予以永久封禁。
 
-If a contributor disagrees with a reviewer's rejection or a penalty for factual errors, core permanent members of the management team will intervene to make the final ruling and arbitration.
+争议仲裁：当贡献者对文章编辑的驳回意见、事实性错误的判罚存在异议时，将由管理组的核心常驻人员介入，进行最终的裁定与仲裁。
