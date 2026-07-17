@@ -4,7 +4,7 @@ index: 7
 is-advanced: true
 banner:
   src: /img/banner.png
-  alt: Graduate Text in Minecraft
+  alt: Graduate Texts in Minecraft
 title: 关于4gt树场的一切
 ---
 
