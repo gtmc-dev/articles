@@ -1,3 +1,7 @@
+---
+skip: true
+---
+
 # 提交文章
 
 [English Version](CONTRIBUTING.md)
@@ -32,6 +36,16 @@
 ## Frontmatter 指南
 
 每篇 Markdown 文件的最顶部都必须包含一个 YAML frontmatter 信息块。源文章和翻译文章使用不同的 frontmatter 结构。
+
+仅供仓库使用且不应出现在网站上的 Markdown 文档使用以下 frontmatter：
+
+```yaml
+---
+skip: true
+---
+```
+
+不要在文章或章节文件中设置 `skip`。
 
 源文章（`*.zh.md`）定义自己的 URL 与源语言元数据：
 

@@ -1,3 +1,7 @@
+---
+skip: true
+---
+
 # Submitting an Article
 
 [中文版](CONTRIBUTING_CN.md)
@@ -30,6 +34,16 @@ Submitting an article is straightforward:
 ## Frontmatter Guide
 
 Every Markdown file requires a YAML frontmatter block at the very top of the file. Source articles and translations use different frontmatter shapes.
+
+Repository-only Markdown documents that must not appear on the website use this frontmatter instead:
+
+```yaml
+---
+skip: true
+---
+```
+
+Do not set `skip` on articles or chapter files.
 
 Source articles (`*.zh.md`) define their own URL and source-language metadata:
 

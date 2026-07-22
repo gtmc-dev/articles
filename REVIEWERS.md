@@ -1,3 +1,7 @@
+---
+skip: true
+---
+
 # Editorial Board Structure
 
 ## Terminology

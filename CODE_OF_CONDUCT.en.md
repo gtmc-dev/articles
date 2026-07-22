@@ -1,3 +1,7 @@
+---
+skip: true
+---
+
 # Code of Conduct
 
 To ensure the efficient operation and high content quality of the GraduateTextsInTechnicalMC (GTMC) community, and to uphold our core focus on educational and practical value, we have established this Code of Conduct. All participants must strictly adhere to these guidelines when contributing content, conducting reviews, and interacting within the community.

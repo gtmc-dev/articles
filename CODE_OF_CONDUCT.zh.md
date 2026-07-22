@@ -1,3 +1,7 @@
+---
+skip: true
+---
+
 # GTMC 社区行为准则 (Code of Conduct)
 
 为保障 GraduateTextsInTechnicalMC (GTMC) 社区的高效运转与内容质量，基于本社区教学性与实用性的核心定位，特制定本行为准则。所有参与者在进行内容贡献、评审与社区互动时，均须严格遵守以下规范。

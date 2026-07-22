@@ -1,3 +1,7 @@
+---
+skip: true
+---
+
 # GTMC Articles Roadmap
 
 2026/04/12 @Arcadi4
