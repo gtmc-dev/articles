@@ -1,0 +1,76 @@
+name: Revert pushes with bad commit messages
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  revert:
+    if: >-
+      github.ref_type == 'branch' &&
+      github.event.pusher.email != '97033226+Arcadi4@users.noreply.github.com' &&
+      github.event.created == false &&
+      github.event.deleted == false &&
+      github.event.before != '0000000000000000000000000000000000000000' &&
+      github.event.after != '0000000000000000000000000000000000000000'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.after }}
+
+      - name: Inspect the incremental push
+        id: inspect
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+
+          zero_sha=0000000000000000000000000000000000000000
+          if [[ "$BEFORE" == "$zero_sha" || "$AFTER" == "$zero_sha" ]]; then
+            echo "The push has no usable before/after commit; refusing to act."
+            echo "has_update=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$BEFORE"
+          fi
+
+          if ! git merge-base --is-ancestor "$BEFORE" "$AFTER"; then
+            echo "The push is not purely incremental; refusing to act."
+            echo "has_update=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git log --format=%s "$BEFORE..$AFTER" | grep -Eiq '^update'; then
+            echo "Found an update-prefixed commit."
+            echo "has_update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No update-prefixed commits found."
+            echo "has_update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Remove the pushed commits
+        if: steps.inspect.outputs.has_update == 'true'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          remote_after="$(git ls-remote --refs origin "refs/heads/$BRANCH" | cut -f1)"
+          if [[ "$remote_after" != "$AFTER" ]]; then
+            echo "The branch moved from $AFTER before the reset; refusing to overwrite newer history."
+            exit 0
+          fi
+
+          git reset --hard "$BEFORE"
+          git push --force-with-lease="refs/heads/$BRANCH:$AFTER" origin "HEAD:refs/heads/$BRANCH"
