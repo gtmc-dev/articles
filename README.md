@@ -17,7 +17,7 @@ Data source for GTMC chapters, proposed drafts, and translations on the website.
 
 <!-- README-I18N:START -->
 
-**English** | [汉语](./README.zh.md)
+**English** | [中文](./README.zh.md)
 
 <!-- README-I18N:END -->
 

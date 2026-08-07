@@ -17,7 +17,7 @@ GTMC 网站章节、待审草稿与翻译的数据源。
 
 <!-- README-I18N:START -->
 
-[English](./README.md) | **汉语**
+[English](./README.md) | **中文**
 
 <!-- README-I18N:END -->
 
