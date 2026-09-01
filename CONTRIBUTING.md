@@ -159,6 +159,40 @@ You can also use :bright-blue[brighter colors].
 > [!TIP]
 > Use colors with restraint—otherwise the page starts to look like a neon sign.
 
+### Java Source References
+
+Java code blocks may include source metadata after the `java` language name. A plain `java` fence is always valid and defaults to Minecraft `1.20.1` with Yarn mappings:
+
+````markdown
+```java
+public class Example {
+    // Defaults to mc=1.20.1 mapping=yarn.
+}
+```
+````
+
+To describe a different source version, add space-separated `key=value` fields to the opening fence. Fields may appear in any order, and each field may be used at most once:
+
+````markdown
+```java mc=1.21.4 mapping=mojmap@2024.12 decompiler=vineflower@1.10 file=net/minecraft/server/level/ServerLevel.java lines=120-148
+public void tick() {
+    // Decompiled source excerpt.
+}
+```
+````
+
+| Field | Optional | Format and default |
+| --- | --- | --- |
+| `mc` | Yes | Minecraft version without spaces. Defaults to `1.20.1`. |
+| `mapping` | Yes | Mapping name, optionally `name@version`. Defaults to `yarn`. |
+| `decompiler` | Yes | Decompiler name, optionally `name@version`. |
+| `file` | Yes | Source path. It may be supplied without `lines`. |
+| `lines` | Yes | A positive line number (`42`) or ascending range (`42-57`). It may be supplied without `file`. |
+
+In the web editor, type ```` ```java ```` and press `Ctrl+Space` to see the Java metadata completions. Invalid fields, duplicate fields, malformed tool versions, and invalid line ranges are marked in the editor before submission. Metadata values cannot contain whitespace; keep each field as one token.
+
+The website uses this metadata for the code block's displayed source basis and for PDF output. It does not turn the source path into a link, so include a repository or source link in the surrounding prose when readers need one.
+
 ### Advanced Content Sections
 
 Deep technical mechanics can easily overwhelm beginners. If a section contains very hardcore content (such as relatively obscure research or code analysis), append `:advanced` to the heading:
