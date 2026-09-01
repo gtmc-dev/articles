@@ -27,10 +27,10 @@ Data source for GTMC chapters, proposed drafts, and translations on the website.
 
 ## About
 
-This repository holds every article in the GTMC textbook. It is a _data repo_ — pure Markdown plus YAML frontmatter, organized into chapter directories. The [website](https://github.com/gtmc-dev/gtmc) consumes this repo as a Git submodule and renders it through its content pipeline.
+This repository holds every article in the GTMC textbook. It is a _data repo_ — pure Markdown plus YAML frontmatter, organized into chapter directories. The [website](https://github.com/techmc-wiki/gtmc) consumes this repo as a Git submodule and renders it through its content pipeline.
 
 > [!NOTE]
-> Looking for the website code, the article reader, or the draft editor? Those live in [`gtmc-dev/gtmc`](https://github.com/gtmc-dev/gtmc).
+> Looking for the website code, the article reader, or the draft editor? Those live in [`techmc-wiki/gtmc`](https://github.com/techmc-wiki/gtmc).
 
 ## Submitting an article
 
@@ -118,15 +118,15 @@ Full Git guidance lives in [`CONTRIBUTING.md`](CONTRIBUTING.md#git-standards).
 
 ## Translation
 
-Until **2026-05-17**, all source articles were written in Chinese and machine-translated into English by Claude Sonnet 4.5 via the [`gtmc-dev/translation`](https://github.com/gtmc-dev/translation) workflow, then tone-revised by MiMo-V2-Pro. The most recent translations track source revision `b881ea81265ca498947f135afd049f52ebd8440b`.
+Until **2026-05-17**, all source articles were written in Chinese and machine-translated into English by Claude Sonnet 4.5 via the [`techmc-wiki/translation`](https://github.com/techmc-wiki/translation) workflow, then tone-revised by MiMo-V2-Pro. The most recent translations track source revision `b881ea81265ca498947f135afd049f52ebd8440b`.
 
 After that date, translations are still pinned to specific source revisions via the `translated-from-revision` field — the website surfaces a "translation may be stale" hint when the source has moved on.
 
 ## See also
 
-- [`gtmc-dev/gtmc`](https://github.com/gtmc-dev/gtmc) — the website that renders this content.
-- [`gtmc-dev/translation`](https://github.com/gtmc-dev/translation) — the translation workflow.
-- [Other GTMC repos](https://github.com/orgs/gtmc-dev/repositories).
+- [`techmc-wiki/gtmc`](https://github.com/techmc-wiki/gtmc) — the website that renders this content.
+- [`techmc-wiki/translation`](https://github.com/techmc-wiki/translation) — the translation workflow.
+- [Other GTMC repos](https://github.com/orgs/techmc-wiki/repositories).
 
 ---
 

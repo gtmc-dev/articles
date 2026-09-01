@@ -27,10 +27,10 @@ GTMC 网站章节、待审草稿与翻译的数据源。
 
 ## 关于
 
-本仓库存放 GTMC 教科书的全部文章。它是一个**内容仓库**——纯 Markdown 加 YAML frontmatter，按章节目录组织。[网站仓库](https://github.com/gtmc-dev/gtmc)以 Git 子模块的方式引入本仓库，并通过其内容流水线进行渲染。
+本仓库存放 GTMC 教科书的全部文章。它是一个**内容仓库**——纯 Markdown 加 YAML frontmatter，按章节目录组织。[网站仓库](https://github.com/techmc-wiki/gtmc)以 Git 子模块的方式引入本仓库，并通过其内容流水线进行渲染。
 
 > [!NOTE]
-> 寻找网站代码、文章阅读器或草稿编辑器？它们在 [`gtmc-dev/gtmc`](https://github.com/gtmc-dev/gtmc)。
+> 寻找网站代码、文章阅读器或草稿编辑器？它们在 [`techmc-wiki/gtmc`](https://github.com/techmc-wiki/gtmc)。
 
 ## 投稿
 
@@ -118,15 +118,15 @@ GTMC 采用扁平结构：只有**评审者**与**作者**两类角色。评审�
 
 ## 翻译
 
-**2026 年 5 月 17 日**之前，所有源文均以中文撰写，再经 Claude Sonnet 4.5 通过 [`gtmc-dev/translation`](https://github.com/gtmc-dev/translation) 工作流机器翻译为英文，并由 MiMo-V2-Pro 进行语气润色。最近一批译文对齐的源文提交为 `b881ea81265ca498947f135afd049f52ebd8440b`。
+**2026 年 5 月 17 日**之前，所有源文均以中文撰写，再经 Claude Sonnet 4.5 通过 [`techmc-wiki/translation`](https://github.com/techmc-wiki/translation) 工作流机器翻译为英文，并由 MiMo-V2-Pro 进行语气润色。最近一批译文对齐的源文提交为 `b881ea81265ca498947f135afd049f52ebd8440b`。
 
 此日期之后的译文仍通过 `translated-from-revision` 字段绑定到具体的源文提交——当源文已变化时，网站会提示读者「译文可能已过时」。
 
 ## 另见
 
-- [`gtmc-dev/gtmc`](https://github.com/gtmc-dev/gtmc) —— 渲染本内容的网站。
-- [`gtmc-dev/translation`](https://github.com/gtmc-dev/translation) —— 翻译工作流。
-- [其他 GTMC 仓库](https://github.com/orgs/gtmc-dev/repositories)。
+- [`techmc-wiki/gtmc`](https://github.com/techmc-wiki/gtmc) —— 渲染本内容的网站。
+- [`techmc-wiki/translation`](https://github.com/techmc-wiki/translation) —— 翻译工作流。
+- [其他 GTMC 仓库](https://github.com/orgs/techmc-wiki/repositories)。
 
 ---
 
