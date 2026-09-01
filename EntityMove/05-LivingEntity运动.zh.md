@@ -312,8 +312,7 @@ $$
 
 `travel()` 是 LivingEntity 的核心运动方法，根据实体所处的环境（空气、水、岩浆、飞行）走不同的分支：
 
-```java
-// LivingEntity.java (1.20.1 Yarn)
+```java file=net/minecraft/entity/LivingEntity.java
 public void travel(Vec3d movementInput) {
     if (this.isLogicalSideForUpdatingMovement()) {
         double d = 0.08;  // 默认重力加速度
@@ -378,8 +377,7 @@ public void travel(Vec3d movementInput) {
 
 ### tickMovement()：每 tick 的运动预处理
 
-```java
-// LivingEntity.java
+```java file=net/minecraft/entity/LivingEntity.java
 public void tickMovement() {
     // 跳跃冷却递减
     if (this.jumpingCooldown > 0) { this.jumpingCooldown--; }
@@ -403,8 +401,8 @@ public void tickMovement() {
 
 LivingEntity `jump()` 方法在 1.20.1 中：
 
-```java
-// LivingEntity.java - jump()
+```java file=net/minecraft/entity/LivingEntity.java
+// jump()
 public void jump() {
     double d = this.getJumpVelocity();  // 默认 0.42
     if (this.hasStatusEffect(StatusEffects.JUMP_BOOST)) {

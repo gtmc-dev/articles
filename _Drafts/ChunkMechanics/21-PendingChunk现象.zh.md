@@ -479,8 +479,7 @@ while ((chunkDataList = this.loadingQueue.poll()) != null) {
 
 计划刻从世界层进入执行队列前，会经过以下源码路径：
 
-```java
-// WorldTickScheduler.java lines 119-122
+```java file=net/minecraft/world/tick/WorldTickScheduler.java lines=119-122
 } else if (this.tickingFutureReadyPredicate.test(l)) {
     objectIterator.remove();
     this.tickableChunkTickSchedulers.add(chunkTickScheduler);
@@ -489,8 +488,7 @@ while ((chunkDataList = this.loadingQueue.poll()) != null) {
 
 这个 predicate 来自 `ServerWorld`：
 
-```java
-// ServerWorld.java lines 1766-1768
+```java file=net/minecraft/server/world/ServerWorld.java lines=1766-1768
 private boolean isTickingFutureReady(long chunkPos) {
     return this.isChunkLoaded(chunkPos) && this.chunkManager.isTickingFutureReady(chunkPos);
 }
@@ -498,8 +496,7 @@ private boolean isTickingFutureReady(long chunkPos) {
 
 前半段继续进入：
 
-```java
-// ServerWorld.java lines 1762-1764
+```java file=net/minecraft/server/world/ServerWorld.java lines=1762-1764
 public boolean isChunkLoaded(long chunkPos) {
     return this.entityManager.isLoaded(chunkPos);
 }
@@ -507,8 +504,7 @@ public boolean isChunkLoaded(long chunkPos) {
 
 最后是实体管理器状态：
 
-```java
-// ServerEntityManager.java lines 362-364
+```java file=net/minecraft/server/world/ServerEntityManager.java lines=362-364
 public boolean isLoaded(long chunkPos) {
     return this.managedStatuses.get(chunkPos) == ServerEntityManager.Status.LOADED;
 }

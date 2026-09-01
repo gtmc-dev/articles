@@ -21,8 +21,7 @@ is-advanced: false
 
 `ChunkHolder` 用三个 `CompletableFuture` 来管理区块的三种"运行视图"：
 
-```java
-// ChunkHolder.java
+```java file=net/minecraft/server/world/ChunkHolder.java
 private volatile CompletableFuture<Either<WorldChunk, Unloaded>> accessibleFuture
     = UNLOADED_WORLD_CHUNK_FUTURE;
 private volatile CompletableFuture<Either<WorldChunk, Unloaded>> tickingFuture
@@ -191,8 +190,7 @@ private final AtomicReferenceArray<CompletableFuture<Either<Chunk, Unloaded>>> f
 
 ### 三个 Future 的状态机设计
 
-```java
-// ChunkHolder.java
+```java file=net/minecraft/server/world/ChunkHolder.java
 private volatile CompletableFuture<Either<WorldChunk, Unloaded>> accessibleFuture
     = UNLOADED_WORLD_CHUNK_FUTURE;
 private volatile CompletableFuture<Either<WorldChunk, Unloaded>> tickingFuture
@@ -236,8 +234,7 @@ this.accessible |= bl4;
 
 ### makeChunkTickable 的 margin=1：为什么要求周边区块
 
-```java
-// ThreadedAnvilChunkStorage.java
+```java file=net/minecraft/server/world/ThreadedAnvilChunkStorage.java
 public CompletableFuture<Either<WorldChunk, Unloaded>> makeChunkTickable(ChunkHolder holder) {
     // 等待以 holder 为中心、margin=1 范围内所有区块达到 FULL
     CompletableFuture<Either<List<Chunk>, Unloaded>> f = this.getRegion(
@@ -293,8 +290,7 @@ holder.getChunkAt(someStatus, chunkStorage)
 
 #### getChunkAt() 的核心逻辑
 
-```java
-// ChunkHolder.java lines 276-299
+```java file=net/minecraft/server/world/ChunkHolder.java lines=276-299
 public CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> getChunkAt(
     ChunkStatus targetStatus, ThreadedAnvilChunkStorage chunkStorage) {
     int i = targetStatus.getIndex();
@@ -391,15 +387,13 @@ public CompletableFuture<Either<Chunk, ChunkHolder.Unloaded>> getChunkAt(
 
 `completedLevel` 是 `ChunkHolder` 的一个字段，表示**当前已完成的最高 ChunkStatus 的 index**：
 
-```java
-// ChunkHolder.java lines 96-98（构造函数中）
+```java file=net/minecraft/server/world/ChunkHolder.java lines=96-98
 this.lastTickLevel = ChunkLevels.INACCESSIBLE + 1;
 this.level = this.lastTickLevel;
 this.completedLevel = this.lastTickLevel;  // 初始化为不可访问
 ```
 
-```java
-// ChunkHolder.java lines 329-335
+```java file=net/minecraft/server/world/ChunkHolder.java lines=329-335
 public int getCompletedLevel() {
     return this.completedLevel;  // 当前已完成的最高 ChunkStatus 的 index
 }
@@ -415,8 +409,7 @@ private void setCompletedLevel(int level) {
 
 当 `tick()` 推进区块的生命周期时，会调用 `levelUpdateListener.updateLevel()`：
 
-```java
-// ChunkHolder.java line 430
+```java file=net/minecraft/server/world/ChunkHolder.java lines=430
 this.levelUpdateListener.updateLevel(
     this.pos, this::getCompletedLevel, this.level, this::setCompletedLevel
 );
@@ -435,15 +428,13 @@ this.levelUpdateListener.updateLevel(
 
 `savingFuture` 是 `ChunkHolder` 的核心 Future，初始值为已完成：
 
-```java
-// ChunkHolder.java line 57
+```java file=net/minecraft/server/world/ChunkHolder.java lines=57
 private CompletableFuture<Chunk> savingFuture = CompletableFuture.completedFuture(null);
 ```
 
 每次 `combineSavingFuture()` 调用都在链上追加一个新环节：
 
-```java
-// ChunkHolder.java lines 301-315
+```java file=net/minecraft/server/world/ChunkHolder.java lines=301-315
 protected void combineSavingFuture(String thenDesc, CompletableFuture<?> then) {
     if (this.actionStack != null) {
         this.actionStack.push(new ChunkHolder.MultithreadAction(Thread.currentThread(), then, thenDesc));
@@ -477,7 +468,7 @@ private void combineSavingFuture(CompletableFuture<? extends Either<? extends Ch
 
 当 `tick()` 推进 `accessibleFuture`/`tickingFuture`/`entityTickingFuture` 时，它们也被链接到 `savingFuture`：
 
-```java
+```java file=net/minecraft/server/world/ChunkHolder.java
 // ChunkHolder.java lines 388, 401, 418（升温时）
 this.combineSavingFuture(this.accessibleFuture, "full");
 this.combineSavingFuture(this.tickingFuture, "ticking");

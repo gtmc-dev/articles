@@ -22,8 +22,7 @@ POI 存储把问题换成了索引查询。`PointOfInterestStorage` 按 chunk se
 
 这也是它要独立保存的原因。普通区块方块数据写在维度目录的 `region/` 子目录下；POI 数据写在同一维度目录的 `poi/` 子目录下。TACS 构造时就把这条旁路接好：
 
-```java
-// ThreadedAnvilChunkStorage.java (Yarn 1.20.1+build.10)
+```java file=net/minecraft/server/world/ThreadedAnvilChunkStorage.java mapping=yarn@1.20.1+build.10
 super(session.getWorldDirectory(world.getRegistryKey()).resolve("region"), dataFixer, dsync);
 Path path = session.getWorldDirectory(world.getRegistryKey());
 this.pointOfInterestStorage = new PointOfInterestStorage(path.resolve("poi"), dataFixer, dsync, dynamicRegistryManager, world);
